@@ -30,3 +30,5 @@ export type { UseLedgerEntryOptions } from "./useLedgerEntry";
 
 export { usePayment } from "./usePayment";
 export { usePathPayment } from "./usePathPayment";
+export { useStellarTransaction } from "./useStellarTransaction";
+export type { UseStellarTransactionOptions, UseStellarTransactionReturn } from "./useStellarTransaction";

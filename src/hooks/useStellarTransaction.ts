@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Horizon, TransactionBuilder, Operation } from "@stellar/stellar-sdk";
+import { Horizon, TransactionBuilder, Operation, Memo } from "@stellar/stellar-sdk";
 import { useStellarContext } from "../context";
 import { useFreighter } from "./useFreighter";
 import { useTransaction } from "./useTransaction";
@@ -15,6 +15,8 @@ export interface UseStellarTransactionOptions {
     fee: string;
     sponsor?: string;
   };
+  /** Optional memo text (max 28 bytes) */
+  memo?: string;
   onSuccess?: (hash: string) => void;
   onError?: (error: Error) => void;
 }
@@ -31,7 +33,7 @@ export interface UseStellarTransactionReturn {
 }
 
 export function useStellarTransaction(options: UseStellarTransactionOptions = {}): UseStellarTransactionReturn {
-  const { fee = 100, timeoutSeconds = 60, feeBump, onSuccess, onError } = options;
+  const { fee = 100, timeoutSeconds = 60, feeBump, memo, onSuccess, onError } = options;
   const { config } = useStellarContext();
   const { signTransaction, publicKey } = useFreighter();
   const { submit: submitXdr, reset, status, hash, error, isLoading, isSuccess, isError } = useTransaction({
@@ -53,6 +55,10 @@ export function useStellarTransaction(options: UseStellarTransactionOptions = {}
     }).setTimeout(timeoutSeconds);
 
     operations.forEach(op => builder.addOperation(op));
+
+    if (memo) {
+      builder.addMemo(Memo.text(memo));
+    }
 
     const builtTx = builder.build();
     const signedInnerXdr = await signTransaction(builtTx.toXDR(), { networkPassphrase: config.networkPassphrase });
@@ -76,7 +82,7 @@ export function useStellarTransaction(options: UseStellarTransactionOptions = {}
     } else {
       await submitXdr(signedInnerXdr);
     }
-  }, [publicKey, config, signTransaction, submitXdr, fee, timeoutSeconds, feeBump]);
+  }, [publicKey, config, signTransaction, submitXdr, fee, timeoutSeconds, feeBump, memo]);
 
   return { submit, status, txHash: hash, isLoading, isSuccess, isError, error, reset };
 }

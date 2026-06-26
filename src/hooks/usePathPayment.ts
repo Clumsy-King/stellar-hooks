@@ -6,15 +6,8 @@
  */
 
 import { useCallback } from "react";
-import {
-  Asset,
-  Horizon,
-  Operation,
-  TransactionBuilder,
-} from "@stellar/stellar-sdk";
-import { useStellarContext } from "../context";
-import { useTransaction } from "./useTransaction";
-import { useFreighter } from "./useFreighter";
+import { Asset, Operation } from "@stellar/stellar-sdk";
+import { useStellarTransaction } from "./useStellarTransaction";
 import type { TransactionStatus } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -149,30 +142,18 @@ export function usePathPayment(
     onError,
   } = options;
 
-  const { config } = useStellarContext();
-  const { signTransaction, publicKey } = useFreighter();
-  const { submit: submitXdr, reset, ...txState } = useTransaction({
-    mode: "classic",
+  const { submit: submitTx, ...txState } = useStellarTransaction({
+    fee,
     timeoutSeconds,
     onSuccess,
     onError,
   });
 
   const submit = useCallback(async () => {
-    if (!publicKey) {
-      throw new Error("Freighter is not connected. Call connect() first.");
-    }
-
-    // 1. Load source account
-    const server = new Horizon.Server(config.horizonUrl);
-    const sourceAccount = await server.loadAccount(publicKey);
-
-    // 2. Resolve assets
     const stellarSendAsset = resolveAsset(sendAsset);
     const stellarDestAsset = resolveAsset(destAsset);
     const stellarPath = path.map(resolveAsset);
 
-    // 3. Build the operation
     const operation =
       mode === "strict-send"
         ? Operation.pathPaymentStrictSend({
@@ -188,47 +169,16 @@ export function usePathPayment(
             sendMax: sendAmount,
             destination,
             destAsset: stellarDestAsset,
-            destAmount: destMin,
+            destAmount: destMin, // destMin is used as destAmount in strict-receive
             path: stellarPath,
           });
 
-    // 4. Build the transaction
-    const tx = new TransactionBuilder(sourceAccount, {
-      fee: String(fee),
-      networkPassphrase: config.networkPassphrase,
-    })
-      .addOperation(operation)
-      .setTimeout(timeoutSeconds)
-      .build();
-
-    const builtXdr = tx.toXDR();
-
-    // 5. Sign via Freighter
-    const signedXdr = await signTransaction(builtXdr, {
-      networkPassphrase: config.networkPassphrase,
-    });
-
-    // 6. Submit and poll
-    await submitXdr(signedXdr);
-  }, [
-    mode,
-    sendAsset,
-    sendAmount,
-    destination,
-    destAsset,
-    destMin,
-    path,
-    fee,
-    timeoutSeconds,
-    config,
-    publicKey,
-    signTransaction,
-    submitXdr,
-  ]);
+    await submitTx([operation]);
+  }, [mode, sendAsset, sendAmount, destination, destAsset, destMin, path, submitTx]);
 
   return {
+    ...txState,
     submit,
-    reset,
     status: txState.status,
     hash: txState.hash,
     error: txState.error,

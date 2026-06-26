@@ -21,56 +21,27 @@ vi.mock("react", async () => {
 
 // ─── Mock @stellar/stellar-sdk ────────────────────────────────────────────────
 
-const mockClaimantFn = vi.fn().mockReturnThis();
-const mockCallFn = vi.fn();
-const mockLoadAccount = vi.fn().mockResolvedValue({ id: "GSOURCE", sequence: "1" });
-
-const mockBuild = vi.fn().mockReturnValue({ toXDR: () => "built-xdr" });
-const mockAddOperation = vi.fn().mockReturnThis();
-const mockSetTimeout = vi.fn().mockReturnThis();
-
 vi.mock("@stellar/stellar-sdk", () => ({
   Asset: Object.assign(
     vi.fn().mockImplementation((code: string, issuer: string) => ({ code, issuer })),
     { native: vi.fn().mockReturnValue({ type: "native" }) }
   ),
   Horizon: {
-    Server: vi.fn().mockImplementation(() => ({
-      loadAccount: mockLoadAccount,
-      claimableBalances: vi.fn().mockReturnValue({
-        claimant: mockClaimantFn,
-        call: mockCallFn,
-      }),
-    })),
+    // Not used directly by useClaimBalance anymore
   },
   Operation: {
     claimClaimableBalance: vi.fn().mockReturnValue({ type: "claimClaimableBalance" }),
-  },
-  TransactionBuilder: vi.fn().mockImplementation(() => ({
-    addOperation: mockAddOperation,
-    setTimeout: mockSetTimeout,
-    build: mockBuild,
-  })),
+  }
 }));
 
 // ─── Mock context and dependent hooks ─────────────────────────────────────────
 
-const mockSubmitXdr = vi.fn().mockResolvedValue(undefined);
+const mockSubmitTx = vi.fn().mockResolvedValue(undefined);
 const mockReset = vi.fn();
-const mockSignTransaction = vi.fn().mockResolvedValue("signed-xdr");
 
-vi.mock("../context", () => ({
-  useStellarContext: () => ({
-    config: {
-      horizonUrl: "https://horizon-testnet.stellar.org",
-      networkPassphrase: "Test SDF Network ; September 2015",
-    },
-  }),
-}));
-
-vi.mock("../hooks/useTransaction", () => ({
-  useTransaction: () => ({
-    submit: mockSubmitXdr,
+vi.mock("../hooks/useStellarTransaction", () => ({
+  useStellarTransaction: () => ({
+    submit: mockSubmitTx,
     reset: mockReset,
     status: "idle",
     hash: null,
@@ -78,13 +49,6 @@ vi.mock("../hooks/useTransaction", () => ({
     isLoading: false,
     isSuccess: false,
     isError: false,
-  }),
-}));
-
-vi.mock("../hooks/useFreighter", () => ({
-  useFreighter: () => ({
-    publicKey: "GPUBLICKEY",
-    signTransaction: mockSignTransaction,
   }),
 }));
 
@@ -109,30 +73,12 @@ function setupReducer(stateOverride = {}) {
   ] as unknown as ReturnType<typeof useReducer>);
 }
 
-const sampleRecord = {
-  id: "balance-id-1",
-  asset: "native",
-  amount: "100.0000000",
-  sponsor: "GSPONSOR",
-  last_modified_ledger: 123456,
-  claimants: [
-    { destination: "GPUBLICKEY", predicate: { unconditional: true } },
-  ],
-};
-
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("useClaimBalance", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupReducer();
-    // Ensure Freighter is connected for every test in this block
-    vi.doMock("../hooks/useFreighter", () => ({
-      useFreighter: () => ({
-        publicKey: "GPUBLICKEY",
-        signTransaction: mockSignTransaction,
-      }),
-    }));
   });
 
   it("returns correct initial state", () => {
@@ -147,16 +93,6 @@ describe("useClaimBalance", () => {
     expect(typeof hook.reset).toBe("function");
   });
 
-  it("builds, signs, and submits a claim transaction", async () => {
-    const hook = useClaimBalance();
-    await hook.claim("balance-id-1");
-
-    expect(mockSignTransaction).toHaveBeenCalledWith("built-xdr", {
-      networkPassphrase: "Test SDF Network ; September 2015",
-    });
-    expect(mockSubmitXdr).toHaveBeenCalledWith("signed-xdr");
-  });
-
   it("calls claimClaimableBalance with the correct balanceId", async () => {
     const { Operation } = await import("@stellar/stellar-sdk");
     const hook = useClaimBalance();
@@ -165,19 +101,6 @@ describe("useClaimBalance", () => {
     expect(Operation.claimClaimableBalance).toHaveBeenCalledWith({
       balanceId: "balance-id-abc",
     });
+    expect(mockSubmitTx).toHaveBeenCalledWith([{ type: "claimClaimableBalance" }]);
   });
-
-  it("throws when publicKey is null", async () => {
-  // Call the async function directly with publicKey set to null in closure
-  const claimFn = async (balanceId: string) => {
-    const publicKey: string | null = null;
-    if (!publicKey) {
-      throw new Error("Freighter is not connected. Call connect() first.");
-    }
-  };
-
-  await expect(claimFn("balance-id-1")).rejects.toThrow(
-    "Freighter is not connected"
-  );
-});
 });

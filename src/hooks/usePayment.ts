@@ -6,16 +6,8 @@
  */
 
 import { useCallback } from "react";
-import {
-  Asset,
-  Horizon,
-  Memo,
-  Operation,
-  TransactionBuilder,
-} from "@stellar/stellar-sdk";
-import { useStellarContext } from "../context";
-import { useTransaction } from "./useTransaction";
-import { useFreighter } from "./useFreighter";
+import { Asset, Operation } from "@stellar/stellar-sdk";
+import { useStellarTransaction } from "./useStellarTransaction";
 import type { TransactionStatus } from "../types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -114,80 +106,37 @@ export function usePayment(options: UsePaymentOptions): UsePaymentReturn {
     onError,
   } = options;
 
-  const { config } = useStellarContext();
-  const { signTransaction, publicKey } = useFreighter();
-  const { submit: submitXdr, reset, ...txState } = useTransaction({
-    mode: "classic",
+  const { submit: submitTx, ...txState } = useStellarTransaction({
+    fee,
     timeoutSeconds,
+    memo,
     onSuccess,
     onError,
   });
 
   const submit = useCallback(async () => {
-    if (!publicKey) {
-      throw new Error("Freighter is not connected. Call connect() first.");
-    }
-
-    // 1. Load the source account from Horizon to get the sequence number
-    const server = new Horizon.Server(config.horizonUrl);
-    const sourceAccount = await server.loadAccount(publicKey);
-
-    // 2. Resolve the asset
     const stellarAsset =
       asset.type === "native"
         ? Asset.native()
         : new Asset(asset.code, asset.issuer);
 
-    // 3. Build the transaction
-    const builder = new TransactionBuilder(sourceAccount, {
-      fee: String(fee),
-      networkPassphrase: config.networkPassphrase,
-    })
-      .addOperation(
-        Operation.payment({
-          destination,
-          asset: stellarAsset,
-          amount,
-        })
-      )
-      .setTimeout(timeoutSeconds);
-
-    // 4. Attach memo if provided
-    if (memo) {
-      builder.addMemo(Memo.text(memo));
-    }
-
-    const builtTx = builder.build();
-    const builtXdr = builtTx.toXDR();
-
-    // 5. Sign via Freighter
-    const signedXdr = await signTransaction(builtXdr, {
-      networkPassphrase: config.networkPassphrase,
+    const operation = Operation.payment({
+      destination,
+      asset: stellarAsset,
+      amount,
     });
 
-    // 6. Submit and poll via useTransaction internals
-    await submitXdr(signedXdr);
-  }, [
-    destination,
-    asset,
-    amount,
-    memo,
-    fee,
-    timeoutSeconds,
-    config,
-    publicKey,
-    signTransaction,
-    submitXdr,
-  ]);
+    await submitTx([operation]);
+  }, [destination, asset, amount, submitTx]);
 
   return {
-    submit,
-    reset,
+    ...txState,
     status: txState.status,
     hash: txState.hash,
     error: txState.error,
     isLoading: txState.isLoading,
     isSuccess: txState.isSuccess,
     isError: txState.isError,
+    submit,
   };
 }

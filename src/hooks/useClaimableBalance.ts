@@ -5,15 +5,9 @@
  */
 
 import { useCallback, useReducer } from "react";
-import {
-  Asset,
-  Horizon,
-  Operation,
-  TransactionBuilder,
-} from "@stellar/stellar-sdk";
+import { Horizon, Operation } from "@stellar/stellar-sdk";
 import { useStellarContext } from "../context";
-import { useTransaction } from "./useTransaction";
-import { useFreighter } from "./useFreighter";
+import { useStellarTransaction } from "./useStellarTransaction";
 import type { TransactionStatus } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +73,15 @@ export interface UseClaimBalanceReturn {
   isSuccess: boolean;
   isError: boolean;
   reset: () => void;
+}
+
+export interface UseClaimBalanceOptions {
+  /** Polling timeout in seconds. Default: 60 */
+  timeoutSeconds?: number;
+  /** Callback fired when the transaction is successfully confirmed. */
+  onSuccess?: (hash: string) => void;
+  /** Callback fired when the transaction fails or an error occurs. */
+  onError?: (error: Error) => void;
 }
 
 // ─── List hook reducer ────────────────────────────────────────────────────────
@@ -183,52 +186,24 @@ export function useClaimableBalances(
 export function useClaimBalance(
   options: UseClaimBalanceOptions = {}
 ): UseClaimBalanceReturn {
-  const { onSuccess, onError } = options;
-  const { config } = useStellarContext();
-  const { signTransaction, publicKey } = useFreighter();
-  const { submit: submitXdr, reset, ...txState } = useTransaction({
-    mode: "classic",
+  const { timeoutSeconds, onSuccess, onError } = options;
+  const { submit: submitTx, ...txState } = useStellarTransaction({
+    timeoutSeconds,
     onSuccess,
     onError,
   });
 
   const claim = useCallback(
     async (balanceId: string) => {
-      if (!publicKey) {
-        throw new Error("Freighter is not connected. Call connect() first.");
-      }
-
-      // 1. Load source account for sequence number
-      const server = new Horizon.Server(config.horizonUrl);
-      const sourceAccount = await server.loadAccount(publicKey);
-
-      // 2. Build the transaction
-      const tx = new TransactionBuilder(sourceAccount, {
-        fee: "100",
-        networkPassphrase: config.networkPassphrase,
-      })
-        .addOperation(
-          Operation.claimClaimableBalance({ balanceId })
-        )
-        .setTimeout(60)
-        .build();
-
-      const builtXdr = tx.toXDR();
-
-      // 3. Sign via Freighter
-      const signedXdr = await signTransaction(builtXdr, {
-        networkPassphrase: config.networkPassphrase,
-      });
-
-      // 4. Submit and poll via useTransaction internals
-      await submitXdr(signedXdr);
+      const operation = Operation.claimClaimableBalance({ balanceId });
+      await submitTx([operation]);
     },
-    [publicKey, config, signTransaction, submitXdr]
+    [submitTx]
   );
 
   return {
+    ...txState,
     claim,
-    reset,
     status: txState.status,
     hash: txState.hash,
     error: txState.error,

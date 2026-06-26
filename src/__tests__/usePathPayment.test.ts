@@ -20,49 +20,25 @@ vi.mock("react", async () => {
 
 // ─── Mock @stellar/stellar-sdk ────────────────────────────────────────────────
 
-const mockBuild = vi.fn().mockReturnValue({ toXDR: () => "built-xdr" });
-const mockAddOperation = vi.fn().mockReturnThis();
-const mockSetTimeout = vi.fn().mockReturnThis();
-
 vi.mock("@stellar/stellar-sdk", () => ({
   Asset: Object.assign(
     vi.fn().mockImplementation((code: string, issuer: string) => ({ type: "credit", code, issuer })),
     { native: vi.fn().mockReturnValue({ type: "native" }) }
   ),
-  Horizon: {
-    Server: vi.fn().mockImplementation(() => ({
-      loadAccount: vi.fn().mockResolvedValue({ id: "GSOURCE", sequence: "1" }),
-    })),
-  },
   Operation: {
     pathPaymentStrictSend: vi.fn().mockReturnValue({ type: "pathPaymentStrictSend" }),
     pathPaymentStrictReceive: vi.fn().mockReturnValue({ type: "pathPaymentStrictReceive" }),
-  },
-  TransactionBuilder: vi.fn().mockImplementation(() => ({
-    addOperation: mockAddOperation,
-    setTimeout: mockSetTimeout,
-    build: mockBuild,
-  })),
+  }
 }));
 
 // ─── Mock context and hooks ───────────────────────────────────────────────────
 
-const mockSubmitXdr = vi.fn().mockResolvedValue(undefined);
+const mockSubmitTx = vi.fn().mockResolvedValue(undefined);
 const mockReset = vi.fn();
-const mockSignTransaction = vi.fn().mockResolvedValue("signed-xdr");
 
-vi.mock("../context", () => ({
-  useStellarContext: () => ({
-    config: {
-      horizonUrl: "https://horizon-testnet.stellar.org",
-      networkPassphrase: "Test SDF Network ; September 2015",
-    },
-  }),
-}));
-
-vi.mock("../hooks/useTransaction", () => ({
-  useTransaction: () => ({
-    submit: mockSubmitXdr,
+vi.mock("../hooks/useStellarTransaction", () => ({
+  useStellarTransaction: () => ({
+    submit: mockSubmitTx,
     reset: mockReset,
     status: "idle",
     hash: null,
@@ -70,13 +46,6 @@ vi.mock("../hooks/useTransaction", () => ({
     isLoading: false,
     isSuccess: false,
     isError: false,
-  }),
-}));
-
-vi.mock("../hooks/useFreighter", () => ({
-  useFreighter: () => ({
-    publicKey: "GPUBLICKEY",
-    signTransaction: mockSignTransaction,
   }),
 }));
 
@@ -129,6 +98,7 @@ describe("usePathPayment", () => {
         destMin: "9",
       })
     );
+    expect(mockSubmitTx).toHaveBeenCalledWith([{ type: "pathPaymentStrictSend" }]);
     expect(Operation.pathPaymentStrictReceive).not.toHaveBeenCalled();
   });
 
@@ -144,17 +114,14 @@ describe("usePathPayment", () => {
         destAmount: "9",
       })
     );
+    expect(mockSubmitTx).toHaveBeenCalledWith([{ type: "pathPaymentStrictReceive" }]);
     expect(Operation.pathPaymentStrictSend).not.toHaveBeenCalled();
   });
 
-  it("signs and submits the built transaction", async () => {
+  it("passes options to useStellarTransaction", async () => {
+    const { useStellarTransaction } = await import("../hooks/useStellarTransaction");
     const hook = getHook();
-    await hook.submit();
-
-    expect(mockSignTransaction).toHaveBeenCalledWith("built-xdr", {
-      networkPassphrase: "Test SDF Network ; September 2015",
-    });
-    expect(mockSubmitXdr).toHaveBeenCalledWith("signed-xdr");
+    expect(useStellarTransaction).toHaveBeenCalledWith(expect.objectContaining({ fee: 100, timeoutSeconds: 60 }));
   });
 
   it("uses Asset.native() for native send asset", async () => {
@@ -186,15 +153,5 @@ describe("usePathPayment", () => {
         path: expect.arrayContaining([expect.anything()]),
       })
     );
-  });
-
-  it("throws when publicKey is null", async () => {
-    const claimFn = async () => {
-      const publicKey: string | null = null;
-      if (!publicKey) {
-        throw new Error("Freighter is not connected. Call connect() first.");
-      }
-    };
-    await expect(claimFn()).rejects.toThrow("Freighter is not connected");
   });
 });
