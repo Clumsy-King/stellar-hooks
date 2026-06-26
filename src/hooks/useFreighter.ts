@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import {
   isConnected,
+  isAllowed,
   getAddress,
   getNetworkDetails,
   requestAccess,
@@ -115,9 +116,12 @@ const initial: Omit<FreighterState, "networkPassphraseMismatch" | "networkPassph
  */
 export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn {
   const [state, dispatch] = useReducer(reducer, initial);
+  const [isSigningMessage, setIsSigningMessage] = useState(false);
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const stellarContext = useOptionalStellarContext();
   const expectedNetworkPassphrase =
     options?.expectedNetworkPassphrase ?? stellarContext?.config.networkPassphrase ?? null;
+  const autoConnect = options?.autoConnect ?? false;
 
   const networkPassphraseMismatch = useMemo(
     () =>
@@ -160,6 +164,34 @@ export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn 
             network: networkDetails.network ?? "",
             networkPassphrase: networkDetails.networkPassphrase ?? "",
           });
+        } else if (autoConnect) {
+          setIsAutoConnecting(true);
+          try {
+            const { isAllowed: allowed } = await isAllowed();
+            if (cancelled) return;
+
+            if (allowed) {
+              const { address: reconAddress, error: reconErr } = await requestAccess();
+              if (cancelled) return;
+
+              if (!reconErr && reconAddress) {
+                const networkDetails = await getNetworkDetails();
+                if (cancelled) return;
+                dispatch({
+                  type: "SET_CONNECTED",
+                  publicKey: asPublicKey(reconAddress),
+                  network: networkDetails.network ?? "",
+                  networkPassphrase: networkDetails.networkPassphrase ?? "",
+                });
+              } else {
+                dispatch({ type: "SET_DISCONNECTED" });
+              }
+            } else {
+              dispatch({ type: "SET_DISCONNECTED" });
+            }
+          } finally {
+            if (!cancelled) setIsAutoConnecting(false);
+          }
         } else {
           dispatch({ type: "SET_DISCONNECTED" });
         }
@@ -172,7 +204,7 @@ export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn 
 
     void probe();
     return () => { cancelled = true; };
-  }, []);
+  }, [autoConnect]);
 
   const connect = useCallback(async () => {
     dispatch({ type: "SET_LOADING", payload: true });
@@ -196,9 +228,6 @@ export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn 
           networkPassphrase: networkDetails.networkPassphrase ?? "",
         });
       } catch (innerErr) {
-        // Some browsers may throw synchronous DOMExceptions when a popup is
-        // blocked — surface this as an error state instead of letting it
-        // propagate as an unhandled rejection.
         dispatch({ type: "SET_ERROR", payload: innerErr instanceof Error ? innerErr : new Error(String(innerErr)) });
         return;
       }
@@ -237,15 +266,31 @@ export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn 
     [state.publicKey]
   );
 
-  // signBlob maps to signMessage in freighter-api v6
   const signBlob = useCallback(
     async (blob: string, opts?: { accountToSign?: string }): Promise<string> => {
       const address = opts?.accountToSign ?? state.publicKey;
       if (!address) throw new Error("Wallet not connected");
-      const { signedMessage, error } = await signMessage(blob, { address });
+      const { signedMessage: signed, error } = await signMessage(blob, { address });
       if (error) throw new Error(error.message);
-      if (!signedMessage) throw new Error("No signed message returned");
-      return signedMessage.toString();
+      if (!signed) throw new Error("No signed message returned");
+      return signed.toString();
+    },
+    [state.publicKey]
+  );
+
+  const signMsg = useCallback(
+    async (message: string, opts?: { accountToSign?: string }): Promise<string> => {
+      const address = opts?.accountToSign ?? state.publicKey;
+      if (!address) throw new Error("Wallet not connected");
+      setIsSigningMessage(true);
+      try {
+        const { signedMessage: signed, error } = await signMessage(message, { address });
+        if (error) throw new Error(error.message);
+        if (!signed) throw new Error("No signed message returned");
+        return signed.toString();
+      } finally {
+        setIsSigningMessage(false);
+      }
     },
     [state.publicKey]
   );
@@ -255,12 +300,15 @@ export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn 
       ...state,
       networkPassphraseMismatch,
       networkPassphraseWarning,
+      isSigningMessage,
+      isAutoConnecting,
       connect,
       disconnect,
       signTransaction: signTx,
       signAuthEntry: signEntry,
       signBlob,
+      signMessage: signMsg,
     }),
-    [state, networkPassphraseMismatch, networkPassphraseWarning, connect, disconnect, signTx, signEntry, signBlob]
+    [state, networkPassphraseMismatch, networkPassphraseWarning, isSigningMessage, isAutoConnecting, connect, disconnect, signTx, signEntry, signBlob, signMsg]
   );
 }
