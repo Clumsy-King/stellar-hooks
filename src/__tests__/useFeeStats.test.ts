@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+﻿import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
 const mockFeeStats = {
@@ -144,5 +144,60 @@ describe("useFeeStats", () => {
     expect(result.current.feeStats).toBeNull();
     expect(result.current.recommendedFee).toBeNull();
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("polls fee stats at the given refetchInterval", async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() =>
+      useFeeStats({ refetchInterval: 3000 })
+    );
+
+    await vi.waitFor(() => {
+      expect(result.current.feeStats).not.toBeNull();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    vi.useRealTimers();
+  });
+
+  it("does not poll when refetchInterval is 0", async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() =>
+      useFeeStats({ refetchInterval: 0 })
+    );
+
+    await vi.waitFor(() => {
+      expect(result.current.feeStats).not.toBeNull();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it("stops polling when unmounted", async () => {
+    vi.useFakeTimers();
+    const { result, unmount } = renderHook(() =>
+      useFeeStats({ refetchInterval: 2000 })
+    );
+
+    await vi.waitFor(() => {
+      expect(result.current.feeStats).not.toBeNull();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    unmount();
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
   });
 });
