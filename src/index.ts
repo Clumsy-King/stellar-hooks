@@ -10,6 +10,8 @@ export { StellarProvider, useStellarContext } from "./context";
 
 // Hooks
 export { useNetwork } from "./hooks/useNetwork";
+export { useStellarNetwork } from "./hooks/useStellarNetwork";
+export type { UseStellarNetworkReturn } from "./hooks/useStellarNetwork";
 export { useFreighter } from "./hooks/useFreighter";
 export { useFreighterAccounts } from "./hooks/useFreighterAccounts";
 export type {
@@ -99,6 +101,8 @@ export type {
 
 export { useSorobanTokenBalance } from "./hooks/useSorobanTokenBalance";
 export { useWalletsKit } from "./hooks/useWalletsKit";
+export { useWalletKit } from "./hooks/useWalletKit";
+export type { UseWalletKitReturn } from "./hooks/useWalletKit";
 export { useWalletConnect } from "./hooks/useWalletConnect";
 export type {
   SorobanTokenBalanceState,
@@ -184,6 +188,15 @@ export type {
 
 // Network presets (useful for custom configs)
 export { NETWORK_CONFIGS } from "./types";
+
+// Wallet adapters
+export type { WalletId, WalletAdapter } from "./wallets";
+export {
+  createFreighterAdapter,
+  createLobstrAdapter,
+  createXBullAdapter,
+  createAllAdapters,
+} from "./wallets";
 
 // Utilities
 export { parseAccountResponse, getCache, setCache } from "./utils";

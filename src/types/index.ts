@@ -275,9 +275,19 @@ export interface UseFreighterOptions {
    * Defaults to the {@link StellarProvider} config when the hook runs inside the provider.
    */
   expectedNetworkPassphrase?: string;
+  /**
+   * When `true`, the hook checks `isAllowed()` on mount and silently
+   * reconnects if the user previously granted access — no popup prompt.
+   * @default false
+   */
+  autoConnect?: boolean;
 }
 
 export interface UseFreighterReturn extends FreighterState {
+  /** `true` while a `signMessage()` call is in flight. */
+  isSigningMessage: boolean;
+  /** `true` while the `autoConnect` silent-reconnect check is in flight on mount. */
+  isAutoConnecting: boolean;
   /** Request wallet access from the user. Resolves when the user approves or rejects. */
   connect: () => Promise<void>;
   /** Clear the active wallet session (does not revoke permissions in Freighter itself). */
@@ -294,6 +304,11 @@ export interface UseFreighterReturn extends FreighterState {
   signAuthEntry: (entryPreimageXdr: StellarXdrString) => Promise<StellarXdrString>;
   /** Sign an arbitrary data blob (e.g. for off-chain login proofs). */
   signBlob: (blob: string, opts?: { accountToSign?: string }) => Promise<string>;
+  /**
+   * Sign an arbitrary message string (e.g. for sign-in-with-Stellar flows).
+   * Sets `isSigningMessage` to `true` while in flight.
+   */
+  signMessage: (message: string, opts?: { accountToSign?: string }) => Promise<string>;
 }
 
 export interface SignTransactionOptions {

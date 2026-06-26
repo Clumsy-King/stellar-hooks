@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 
 export const isConnected = vi.fn().mockResolvedValue({ isConnected: false });
+export const isAllowed = vi.fn().mockResolvedValue({ isAllowed: false });
 export const getAddress = vi.fn().mockResolvedValue({ address: null, error: "Not connected" });
 export const getNetworkDetails = vi.fn().mockResolvedValue({ network: null, networkPassphrase: null });
 export const getNetwork = getNetworkDetails;
@@ -12,6 +13,7 @@ export const signBlob = signMessage;
 
 export function resetFreighterMocks() {
   isConnected.mockResolvedValue({ isConnected: false });
+  isAllowed.mockResolvedValue({ isAllowed: false });
   getAddress.mockResolvedValue({ address: null, error: "Not connected" });
   getNetworkDetails.mockResolvedValue({ network: null, networkPassphrase: null });
   requestAccess.mockResolvedValue({ address: null, error: null });

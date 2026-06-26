@@ -70,11 +70,13 @@ Every hook listed below is implemented and exported from the package entry point
 
 | Hook | Description |
 |------|-------------|
-| [`useFreighter()`](#usefreighter) ↓ | Connect to the [Freighter](https://freighter.app) extension (`@stellar/freighter-api` v6); sign transactions, auth entries, and messages. |
+| [`useFreighter()`](#usefreighter) ↓ | Connect to the [Freighter](https://freighter.app) extension (`@stellar/freighter-api` v6); sign transactions, auth entries, and messages. Supports `signMessage()` and `autoConnect`. |
 | `useFreighterAccounts()` | Track previously-seen Freighter addresses in `localStorage`; drive the permission dialog to switch between them. |
+| [`useWalletKit()`](#usewalletkit) ↓ | Detect installed Stellar wallets (Freighter, Lobstr, xBull) and expose a unified connect / sign interface. |
 | `useWalletsKit()` | Multi-wallet adapter via [`@creit-tech/stellar-wallets-kit`](https://github.com/Creit-Tech/Stellar-Wallets-Kit) (Freighter, xBull, Albedo, Lobstr, WalletConnect, …). |
 | `useWalletConnect()` | WalletConnect v2 adapter for Stellar / Freighter Mobile. |
 | [`useNetwork()`](#usenetwork) ↓ | Read the active network configuration and switch networks at runtime. |
+| [`useStellarNetwork()`](#usestellarnetwork) ↓ | Read the active network and switch networks dynamically via `setNetwork()` — no page reload required. |
 
 #### Account & ledger data (read)
 
@@ -134,6 +136,8 @@ const {
   networkPassphraseMismatch, // boolean — true when wallet network differs from `expectedNetworkPassphrase` (or the <StellarProvider> network)
   networkPassphraseWarning,  // string | null — actionable warning text on mismatch; null otherwise
   isLoading,
+  isSigningMessage,        // boolean — true while signMessage() is in flight
+  isAutoConnecting,        // boolean — true while the autoConnect silent check runs
   error,
 
   connect,           // () => Promise<void>
@@ -141,7 +145,50 @@ const {
   signTransaction,   // (xdr: string, opts?) => Promise<string>
   signAuthEntry,     // (entryPreimageXdr: string) => Promise<string>
   signBlob,          // (blob: string, opts?) => Promise<string>  — wraps signMessage
+  signMessage,       // (message: string, opts?) => Promise<string>  — sign arbitrary messages
 } = useFreighter();
+```
+
+#### Sign-in with Stellar
+
+Use `signMessage()` to implement challenge-response authentication flows:
+
+```tsx
+import { useFreighter } from "stellar-hooks";
+
+function SignInButton() {
+  const { isConnected, publicKey, signMessage, isSigningMessage, connect } = useFreighter();
+
+  async function handleSignIn() {
+    if (!isConnected) { await connect(); return; }
+    const challenge = `Sign in to MyApp at ${new Date().toISOString()}`;
+    const signature = await signMessage(challenge);
+    // Send { publicKey, challenge, signature } to your backend for verification
+    await fetch("/api/auth", {
+      method: "POST",
+      body: JSON.stringify({ publicKey, challenge, signature }),
+    });
+  }
+
+  return (
+    <button onClick={handleSignIn} disabled={isSigningMessage}>
+      {isSigningMessage ? "Signing…" : "Sign In with Stellar"}
+    </button>
+  );
+}
+```
+
+#### Auto-connect returning users
+
+Pass `autoConnect: true` to silently reconnect users who previously granted access — no popup:
+
+```tsx
+const { isConnected, publicKey, isAutoConnecting } = useFreighter({
+  autoConnect: true,
+});
+
+if (isAutoConnecting) return <p>Reconnecting…</p>;
+if (isConnected) return <p>Welcome back, {publicKey}</p>;
 ```
 
 #### Network mismatch detection
@@ -210,6 +257,93 @@ switchNetwork("custom", {
 ```
 
 The selected network is persisted to `localStorage` and survives page reloads.
+
+---
+
+### `useStellarNetwork()`
+
+Read the active network and switch networks dynamically via `setNetwork()` — no page reload or provider remount required. All child hooks re-fetch automatically when the network changes.
+
+```ts
+const {
+  network,            // StellarNetwork
+  networkPassphrase,  // string
+  horizonUrl,         // string
+  sorobanRpcUrl,      // string
+  config,             // NetworkConfig
+  setNetwork,         // (network: StellarNetwork, customConfig?: CustomNetworkConfig) => void
+} = useStellarNetwork();
+```
+
+Example — a testnet/mainnet toggle:
+
+```tsx
+import { useStellarNetwork } from "stellar-hooks";
+
+function NetworkToggle() {
+  const { network, setNetwork } = useStellarNetwork();
+
+  return (
+    <button onClick={() => setNetwork(network === "testnet" ? "mainnet" : "testnet")}>
+      Currently: {network} — click to switch
+    </button>
+  );
+}
+```
+
+---
+
+### `useWalletKit()`
+
+Detect installed Stellar wallets (Freighter, Lobstr, xBull) and expose a unified interface — connect, disconnect, and sign regardless of which wallet is active.
+
+```ts
+const {
+  availableWallets,  // WalletId[] — e.g. ["freighter", "lobstr"]
+  activeWallet,      // WalletId | null
+  publicKey,         // string | null
+  isConnecting,      // boolean
+  error,             // Error | null
+
+  setActiveWallet,   // (id: WalletId) => void
+  connect,           // (walletId?: WalletId) => Promise<string | null>
+  disconnect,        // () => void
+  signTransaction,   // (xdr: string, opts?) => Promise<string>
+} = useWalletKit();
+```
+
+Example — wallet picker:
+
+```tsx
+import { useWalletKit } from "stellar-hooks";
+
+function WalletPicker() {
+  const { availableWallets, activeWallet, publicKey, connect, disconnect } = useWalletKit();
+
+  if (publicKey) {
+    return (
+      <div>
+        <p>Connected via {activeWallet}: {publicKey}</p>
+        <button onClick={disconnect}>Disconnect</button>
+      </div>
+    );
+  }
+
+  if (availableWallets.length === 0) return <p>No Stellar wallets detected.</p>;
+
+  return (
+    <div>
+      {availableWallets.map((id) => (
+        <button key={id} onClick={() => connect(id)}>
+          Connect {id}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+Falls back gracefully when a wallet extension is not installed — it simply won't appear in `availableWallets`.
 
 ---
 

@@ -1,4 +1,6 @@
 export { useNetwork } from "./useNetwork";
+export { useStellarNetwork } from "./useStellarNetwork";
+export type { UseStellarNetworkReturn } from "./useStellarNetwork";
 export { useStellarAccount } from "./useStellarAccount";
 export type { UseStellarAccountOptions, UseStellarAccountReturn } from "./useStellarAccount";
 
