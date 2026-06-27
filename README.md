@@ -118,6 +118,8 @@ Every hook listed below is implemented and exported from the package entry point
 
 #### Soroban / contracts
 
+For a cross-hook breakdown of how `error`, `isError`, `refetch`, and `reset` behave, see the [Error Handling Patterns](docs/guides/error-handling.md) guide.
+
 | Hook | Description |
 |------|-------------|
 | [`useSorobanContract()`](#usesorobancontractoptions) ↓ | Simulate → sign → submit → poll a Soroban contract call in one hook. |
