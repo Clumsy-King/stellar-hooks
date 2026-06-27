@@ -60,6 +60,8 @@ export type {
   UseBumpSequenceReturn,
 } from "./useBumpSequence";
 export { usePathPayment } from "./usePathPayment";
+export { useStellarTransaction } from "./useStellarTransaction";
+export type { UseStellarTransactionOptions, UseStellarTransactionReturn } from "./useStellarTransaction";
 export { useInflation } from "./useInflation";
 export type { UseInflationOptions, UseInflationReturn } from "./useInflation";
 export { useTrade } from "./useTrade";

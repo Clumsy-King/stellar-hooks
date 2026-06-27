@@ -20,26 +20,16 @@ vi.mock("react", async () => {
 
 // â”€â”€â”€ Mock @stellar/stellar-sdk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const mockBuild = vi.fn().mockReturnValue({ toXDR: () => "built-xdr" });
-const mockAddOperation = vi.fn().mockReturnThis();
-const mockSetTimeout = vi.fn().mockReturnThis();
-const mockAddMemo = vi.fn().mockReturnThis();
-
 vi.mock("@stellar/stellar-sdk", () => ({
   StrKey: {
     isValidEd25519PublicKey: vi.fn().mockReturnValue(true),
   },
   Asset: Object.assign(
-  vi.fn().mockImplementation((code: string, issuer: string) => ({ type: "credit", code, issuer })),
-  {
-    native: vi.fn().mockReturnValue({ type: "native" }),
-  }
-),
-  Horizon: {
-    Server: vi.fn().mockImplementation(() => ({
-      loadAccount: vi.fn().mockResolvedValue({ id: "GSOURCE", sequence: "1" }),
-    })),
-  },
+    vi.fn().mockImplementation((code: string, issuer: string) => ({ type: "credit", code, issuer })),
+    {
+      native: vi.fn().mockReturnValue({ type: "native" }),
+    }
+  ),
   Memo: {
     text: vi.fn().mockReturnValue({ type: "text", value: "Thanks!" }),
   },
@@ -47,17 +37,18 @@ vi.mock("@stellar/stellar-sdk", () => ({
     payment: vi.fn().mockReturnValue({ type: "payment" }),
   },
   TransactionBuilder: vi.fn().mockImplementation(() => ({
-    addOperation: mockAddOperation,
-    setTimeout: mockSetTimeout,
-    addMemo: mockAddMemo,
-    build: mockBuild,
+    // The hook no longer uses this directly
   })),
 }));
 
 // â”€â”€â”€ Mock context and dependent hooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const mockSubmitXdr = vi.fn().mockResolvedValue(undefined);
+const mockSubmitTx = vi.fn().mockResolvedValue(undefined);
 const mockReset = vi.fn();
+
+vi.mock("../hooks/useStellarTransaction", () => ({
+  useStellarTransaction: () => ({
+    submit: mockSubmitTx,
 const mockSignTransaction = vi.fn().mockResolvedValue("signed-xdr");
 let mockPublicKey: string | null = "GPUBLICKEY";
 
@@ -83,6 +74,7 @@ vi.mock("../hooks/useTransactionCore", () => ({
   }),
 }));
 
+// ─── Import AFTER mocks ───────────────────────────────────────────────────────
 vi.mock("../hooks/useFreighter", () => ({
   useFreighter: () => ({
     get publicKey() {
@@ -128,13 +120,25 @@ describe("usePayment", () => {
     expect(typeof hook.reset).toBe("function");
   });
 
+  it("submits a payment operation via useStellarTransaction", async () => {
+    const { Operation } = await import("@stellar/stellar-sdk");
+    const hook = getHook();
   it("builds, signs, and submits an XLM payment", async () => {
     const hook = useHook();
     await hook.submit();
 
-    expect(mockSignTransaction).toHaveBeenCalledWith("built-xdr", {
-      networkPassphrase: "Test SDF Network ; September 2015",
+    expect(Operation.payment).toHaveBeenCalledWith({
+      destination: "GDEST...",
+      asset: { type: "native" },
+      amount: "10",
     });
+    expect(mockSubmitTx).toHaveBeenCalledWith([{ type: "payment" }]);
+  });
+
+  it("passes options to useStellarTransaction", async () => {
+    const { useStellarTransaction } = await import("../hooks/useStellarTransaction");
+    getHook({ memo: "test-memo", fee: 200, timeoutSeconds: 30 });
+    expect(useStellarTransaction).toHaveBeenCalledWith(expect.objectContaining({ memo: "test-memo", fee: 200, timeoutSeconds: 30 }));
     expect(mockSubmitXdr).toHaveBeenCalledWith("signed-xdr");
   });
 
@@ -163,12 +167,17 @@ describe("usePayment", () => {
   });
 
   it("uses a credit asset when asset type is credit", async () => {
+    const { Asset, Operation } = await import("@stellar/stellar-sdk");
+    const hook = getHook({
     const { Asset } = await import("@stellar/stellar-sdk");
     const hook = useHook({
       asset: { type: "credit", code: "USDC", issuer: "GISSUER..." },
     });
     await hook.submit();
 
+    expect(Operation.payment).toHaveBeenCalledWith(expect.objectContaining({
+      asset: { type: "credit", code: "USDC", issuer: "GISSUER..." },
+    }));
     expect(Asset.native).not.toHaveBeenCalled();
     expect(Asset).toHaveBeenCalledWith("USDC", "GISSUER...");
   });

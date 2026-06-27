@@ -6,6 +6,9 @@
  */
 
 import { useCallback } from "react";
+import { Asset, Operation } from "@stellar/stellar-sdk";
+import { useStellarTransaction } from "./useStellarTransaction";
+import type { TransactionStatus } from "../types";
 import {
   Asset,
   Horizon,
@@ -151,6 +154,8 @@ export function usePathPayment(
     onError,
   } = options;
 
+  const { submit: submitTx, ...txState } = useStellarTransaction({
+    fee,
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
     timeoutSeconds,
@@ -183,7 +188,6 @@ export function usePathPayment(
     const stellarDestAsset = resolveAsset(destAsset);
     const stellarPath = path.map(resolveAsset);
 
-    // 3. Build the operation
     const operation =
       mode === "strict-send"
         ? Operation.pathPaymentStrictSend({
@@ -199,10 +203,12 @@ export function usePathPayment(
             sendMax: sendAmount,
             destination,
             destAsset: stellarDestAsset,
-            destAmount: destMin,
+            destAmount: destMin, // destMin is used as destAmount in strict-receive
             path: stellarPath,
           });
 
+    await submitTx([operation]);
+  }, [mode, sendAsset, sendAmount, destination, destAsset, destMin, path, submitTx]);
     // 4. Build the transaction
     const tx = new TransactionBuilder(sourceAccount, {
       fee: String(fee),
@@ -238,8 +244,8 @@ export function usePathPayment(
   ]);
 
   return {
+    ...txState,
     submit,
-    reset,
     status: txState.status,
     hash: txState.hash,
     error: txState.error,
