@@ -90,6 +90,7 @@ export function useTransactionHistory(
     setHasMore(true);
     fetchTransactions();
   }, [fetchTransactions, publicKey, limit, order]);
+  }, [fetchTransactions]);
 
   const fetchNextPage = useCallback(() => {
     if (!isLoading && hasMore && pagingToken) {
