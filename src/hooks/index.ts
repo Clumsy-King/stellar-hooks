@@ -153,3 +153,25 @@ export type {
 
 export { useContractEvents } from "./useContractEvents";
 export type { UseContractEventsOptions } from "./useContractEvents";
+
+export { useTrades } from "./useTrades";
+export type {
+  TradeRecord,
+  UseTradesOptions,
+  UseTradesReturn,
+} from "./useTrades";
+
+export { useOrderBook } from "./useOrderBook";
+export type {
+  OrderBookLevel,
+  OrderBookRecord,
+  UseOrderBookOptions,
+  UseOrderBookReturn,
+} from "./useOrderBook";
+
+export { useStrictSendPaths } from "./useStrictSendPaths";
+export type {
+  PathRecord,
+  UseStrictSendPathsOptions,
+  UseStrictSendPathsReturn,
+} from "./useStrictSendPaths";

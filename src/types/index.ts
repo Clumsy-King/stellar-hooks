@@ -143,6 +143,26 @@ export interface UseOffersReturn {
   prevPage: () => Promise<void>;
 }
 
+// Re-export new hook types so consumers can import from "stellar-hooks"
+export type {
+  TradeRecord,
+  UseTradesOptions,
+  UseTradesReturn,
+} from "../hooks/useTrades";
+
+export type {
+  OrderBookLevel,
+  OrderBookRecord,
+  UseOrderBookOptions,
+  UseOrderBookReturn,
+} from "../hooks/useOrderBook";
+
+export type {
+  PathRecord,
+  UseStrictSendPathsOptions,
+  UseStrictSendPathsReturn,
+} from "../hooks/useStrictSendPaths";
+
 export const NETWORK_CONFIGS: Record<Exclude<StellarNetwork, "custom">, NetworkConfig> = {
   mainnet: {
     network: "mainnet",
