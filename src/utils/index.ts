@@ -6,17 +6,26 @@
 
 import type { Horizon } from "@stellar/stellar-sdk";
 import type { StellarAccountData } from "../types";
+import { unsafeAsPublicKey, unsafeAsAssetIssuer } from "../types";
+
+export {
+  validatePublicKey,
+  validateContractId,
+  validateOptionalPublicKey,
+  validateOptionalContractId,
+  ValidationError,
+} from "./validation";
 
 /**
  * Transforms a raw Horizon AccountResponse into the library's internal StellarAccountData format.
  */
 export function parseAccountResponse(raw: Horizon.AccountResponse): StellarAccountData {
   return {
-    accountId: raw.account_id,
+    accountId: unsafeAsPublicKey(raw.account_id),
     sequence: raw.sequence,
     subentryCount: raw.subentry_count,
-    numSponsored: raw.num_sponsored,
-    numSponsoring: raw.num_sponsoring,
+    numSponsored: (raw as Horizon.AccountResponse & { num_sponsored?: number }).num_sponsored ?? 0,
+    numSponsoring: (raw as Horizon.AccountResponse & { num_sponsoring?: number }).num_sponsoring ?? 0,
     thresholds: {
       lowThreshold: raw.thresholds.low_threshold,
       medThreshold: raw.thresholds.med_threshold,
@@ -28,17 +37,26 @@ export function parseAccountResponse(raw: Horizon.AccountResponse): StellarAccou
       authImmutable: raw.flags.auth_immutable,
       authClawbackEnabled: raw.flags.auth_clawback_enabled,
     },
-    balances: raw.balances.map((b) => ({
-      assetType: b.asset_type,
-      assetCode: b.asset_code,
-      assetIssuer: b.asset_issuer,
-      balance: b.balance,
-      balanceFloat: parseFloat(b.balance),
-      buyingLiabilities: b.buying_liabilities,
-      sellingLiabilities: b.selling_liabilities,
-      limit: b.limit,
-      isNative: b.asset_type === "native",
-    })),
+    balances: raw.balances
+      .filter((b) => b.asset_type !== "liquidity_pool_shares")
+      .map((b) => {
+        const isAsset = b.asset_type === "credit_alphanum4" || b.asset_type === "credit_alphanum12";
+        return {
+          assetType: b.asset_type,
+          ...(isAsset && { assetCode: (b as Horizon.HorizonApi.BalanceLineAsset).asset_code }),
+          ...(isAsset && { assetIssuer: unsafeAsAssetIssuer((b as Horizon.HorizonApi.BalanceLineAsset).asset_issuer) }),
+          balance: b.balance,
+          balanceFloat: parseFloat(b.balance),
+          buyingLiabilities: isAsset || b.asset_type === "native"
+            ? (b as Horizon.HorizonApi.BalanceLineAsset | Horizon.HorizonApi.BalanceLineNative).buying_liabilities
+            : "0",
+          sellingLiabilities: isAsset || b.asset_type === "native"
+            ? (b as Horizon.HorizonApi.BalanceLineAsset | Horizon.HorizonApi.BalanceLineNative).selling_liabilities
+            : "0",
+          ...(isAsset && { limit: (b as Horizon.HorizonApi.BalanceLineAsset).limit }),
+          isNative: b.asset_type === "native",
+        };
+      }),
     raw,
   };
 }
@@ -59,7 +77,7 @@ export function backoff(attempt: number, base = 1000) {
 
 // ─── Simple In-Memory Cache ───────────────────────────────────────────────────
 
-const cache = new Map<string, { data: any; expires: number }>();
+const cache = new Map<string, { data: unknown; expires: number }>();
 
 export function getCache<T>(key: string): T | null {
   const item = cache.get(key);
