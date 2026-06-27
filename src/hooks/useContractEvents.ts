@@ -6,8 +6,9 @@
  */
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { rpc } from "@stellar/stellar-sdk";
+import * as rpc from "@stellar/stellar-sdk/rpc";
 import { useStellarContext } from "../context";
+import { validateContractId } from "../utils";
 
 export interface UseContractEventsOptions {
   /** Soroban contract address (C...) */
@@ -22,6 +23,10 @@ export interface UseContractEventsOptions {
   startLedger?: number;
   /** Interval in milliseconds to continuously stream/poll events. Default: 0 (disabled) */
   refetchInterval?: number;
+  /** Fetching mode. 'poll' uses repeated RPC calls; 'stream' is reserved for future streaming support. Default: 'poll' */
+  mode?: "poll" | "stream";
+  /** Poll interval in milliseconds (alias for refetchInterval when mode is 'poll'). Takes precedence over refetchInterval when set. */
+  pollInterval?: number;
 }
 
 interface EventsState {
@@ -48,6 +53,20 @@ function reducer(state: EventsState, action: Action): EventsState {
   }
 }
 
+/**
+ * Poll or stream Soroban contract events from the RPC endpoint.
+ *
+ * @example
+ * ```tsx
+ * const { events, isLoading, error, refetch } = useContractEvents({
+ *   contractId: "CABC...XYZ",
+ *   startLedger: 100000,
+ *   refetchInterval: 5000,
+ * });
+ *
+ * return events.map((e) => <p key={e.id}>{JSON.stringify(e.value)}</p>);
+ * ```
+ */
 export function useContractEvents(options: UseContractEventsOptions) {
   const { config } = useStellarContext();
   const [state, dispatch] = useReducer(reducer, {
@@ -56,32 +75,35 @@ export function useContractEvents(options: UseContractEventsOptions) {
     error: null,
   });
 
+  const mode = options.mode ?? "poll";
+  const interval = options.pollInterval ?? options.refetchInterval ?? 0;
+
   const cursorRef = useRef<string | undefined>();
   const isMounted = useRef(true);
 
   const fetchEvents = useCallback(async () => {
     try {
+      validateContractId(options.contractId);
       dispatch({ type: "LOADING" });
       const server = new rpc.Server(config.sorobanRpcUrl);
-      
+
       const filter: rpc.Api.EventFilter = {
         type: options.type || "contract",
         contractIds: [options.contractId],
-        topics: options.topics,
+        ...(options.topics !== undefined && { topics: options.topics }),
       };
 
       const response = await server.getEvents({
-        startLedger: options.startLedger,
+        ...(options.startLedger !== undefined && { startLedger: options.startLedger }),
+        ...(cursorRef.current !== undefined && { cursor: cursorRef.current }),
         filters: [filter],
-        pagination: {
-          cursor: cursorRef.current,
-          limit: options.limit || 100,
-        }
+        limit: options.limit ?? 100,
       });
 
       if (isMounted.current && response.events) {
         if (response.events.length > 0) {
-          cursorRef.current = response.events[response.events.length - 1].pagingToken;
+          const lastEvent = response.events[response.events.length - 1];
+          if (lastEvent) cursorRef.current = lastEvent.pagingToken;
         }
         dispatch({ type: "SUCCESS", payload: response.events });
       }
@@ -93,22 +115,33 @@ export function useContractEvents(options: UseContractEventsOptions) {
   }, [config.sorobanRpcUrl, options.contractId, options.type, options.topics, options.startLedger, options.limit]);
 
   useEffect(() => {
+    if (mode === "stream") {
+      dispatch({
+        type: "ERROR",
+        payload: new Error(
+          "Stream mode is not yet supported. Use mode: 'poll' (default) instead."
+        ),
+      });
+      return;
+    }
+
     isMounted.current = true;
     fetchEvents();
 
     let intervalId: ReturnType<typeof setInterval>;
-    if (options.refetchInterval && options.refetchInterval > 0) {
-      intervalId = setInterval(fetchEvents, options.refetchInterval);
+    if (interval > 0) {
+      intervalId = setInterval(fetchEvents, interval);
     }
 
     return () => {
       isMounted.current = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [fetchEvents, options.refetchInterval]);
+  }, [fetchEvents, interval, mode]);
 
-  return { 
-    ...state, 
+  return {
+    ...state,
+    mode,
     refetch: fetchEvents,
     stop: () => { isMounted.current = false; },
     start: () => { isMounted.current = true; fetchEvents(); }

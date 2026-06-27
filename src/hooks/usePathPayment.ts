@@ -9,6 +9,18 @@ import { useCallback } from "react";
 import { Asset, Operation } from "@stellar/stellar-sdk";
 import { useStellarTransaction } from "./useStellarTransaction";
 import type { TransactionStatus } from "../types";
+import {
+  Asset,
+  Horizon,
+  Operation,
+  TransactionBuilder,
+} from "@stellar/stellar-sdk";
+import { useStellarContext } from "../context";
+import { useTransactionCore } from "./useTransactionCore";
+import { useFreighter } from "./useFreighter";
+import type { TransactionStatus, StellarTransactionError } from "../types";
+import { unsafeAsXdrString } from "../types";
+import { validatePublicKey } from "../utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +61,7 @@ export interface UsePathPaymentOptions {
   /** Callback fired when the transaction is successfully confirmed. */
   onSuccess?: (hash: string) => void;
   /** Callback fired when the transaction fails or an error occurs. */
-  onError?: (error: Error) => void;
+  onError?: (error: StellarTransactionError) => void;
 }
 
 /**
@@ -79,7 +91,7 @@ export interface UsePathPaymentReturn {
   submit: () => Promise<void>;
   status: TransactionStatus;
   hash: string | null;
-  error: Error | null;
+  error: StellarTransactionError | null;
   isLoading: boolean;
   isSuccess: boolean;
   isError: boolean;
@@ -144,12 +156,34 @@ export function usePathPayment(
 
   const { submit: submitTx, ...txState } = useStellarTransaction({
     fee,
+  const { submit: submitXdr, reset, ...txState } = useTransactionCore({
+    mode: "classic",
     timeoutSeconds,
-    onSuccess,
-    onError,
+    ...(onSuccess && { onSuccess }),
+    ...(onError && { onError }),
   });
 
+  const { config } = useStellarContext();
+  const { signTransaction, publicKey } = useFreighter();
+
   const submit = useCallback(async () => {
+    if (!publicKey) {
+      throw new Error("Freighter is not connected. Call connect() first.");
+    }
+
+    validatePublicKey(destination, "destination");
+    if (sendAsset.type === "credit") {
+      validatePublicKey(sendAsset.issuer, "sendAsset.issuer");
+    }
+    if (destAsset.type === "credit") {
+      validatePublicKey(destAsset.issuer, "destAsset.issuer");
+    }
+
+    // 1. Load source account
+    const server = new Horizon.Server(config.horizonUrl);
+    const sourceAccount = await server.loadAccount(publicKey);
+
+    // 2. Resolve assets
     const stellarSendAsset = resolveAsset(sendAsset);
     const stellarDestAsset = resolveAsset(destAsset);
     const stellarPath = path.map(resolveAsset);
@@ -175,6 +209,39 @@ export function usePathPayment(
 
     await submitTx([operation]);
   }, [mode, sendAsset, sendAmount, destination, destAsset, destMin, path, submitTx]);
+    // 4. Build the transaction
+    const tx = new TransactionBuilder(sourceAccount, {
+      fee: String(fee),
+      networkPassphrase: config.networkPassphrase,
+    })
+      .addOperation(operation)
+      .setTimeout(timeoutSeconds)
+      .build();
+
+    const builtXdr = tx.toXDR();
+
+    // 5. Sign via Freighter
+    const signedXdr = await signTransaction(unsafeAsXdrString(builtXdr), {
+      networkPassphrase: config.networkPassphrase,
+    });
+
+    // 6. Submit and poll
+    await submitXdr(signedXdr);
+  }, [
+    mode,
+    sendAsset,
+    sendAmount,
+    destination,
+    destAsset,
+    destMin,
+    path,
+    fee,
+    timeoutSeconds,
+    config,
+    publicKey,
+    signTransaction,
+    submitXdr,
+  ]);
 
   return {
     ...txState,
