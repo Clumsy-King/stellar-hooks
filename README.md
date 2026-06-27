@@ -191,6 +191,26 @@ await submit(signedXdr);
 
 ---
 
+### `useNetworkStatus(options?)`
+
+Expose real-time Horizon and RPC health. Useful for showing network status indicators in dApp UIs.
+
+```ts
+const {
+  horizonLatency,  // number — latency in ms; Infinity if offline
+  rpcLatency,      // number — latency in ms; Infinity if offline
+  isHorizonHealthy,// boolean
+  isRpcHealthy,    // boolean
+  ledger,          // number — latest ledger sequence
+} = useNetworkStatus({
+  refetchInterval: 10000, // poll every 10s (default)
+});
+```
+
+This hook will gracefully handle timeouts and offline scenarios for each endpoint independently.
+
+---
+
 ### `useLedgerEntry(ledgerKey, options?)`
 
 Read a raw Soroban ledger entry by its `xdr.LedgerKey` without constructing a contract call.
