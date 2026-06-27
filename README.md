@@ -87,14 +87,16 @@ Every hook listed below is implemented and exported from the package entry point
 | [`useStellarBalance()`](#usestellarbalancepublickey-options) ↓ | XLM and per-asset balances (wrapper around `useStellarAccount`). |
 | `useSorobanTokenBalance()` | Read SAC (Stellar Asset Contract) token balances via Soroban RPC. |
 | [`useLedgerEntry()`](#useledgerentryledgerkey-options) ↓ | Read a raw Soroban ledger entry by its `xdr.LedgerKey`. |
-| `useOperations()` | Fetch operations for an account or transaction from Horizon. |
+| `useOperations()` | Fetch operations for an account or transaction from Horizon; supports `includeFailed` and cursor-based pagination. |
 | `useEffects()` | Stream account effects from Horizon. |
 | `useAssets()` | Fetch and list Stellar assets via Horizon. |
 | `useAssetMetadata()` | Fetch asset metadata from a domain's `stellar.toml`. |
 | `useStellarToml()` | Fetch and parse a domain's `stellar.toml`. |
 | `useOffers()` | Fetch open offers for a Stellar account with pagination helpers. |
 | `useStellarOffers()` | Fetch open offers for a Stellar account. |
-| `useOfferBook()` | Fetch the DEX order book for an asset pair. |
+| [`useOrderBook()`](#useorderbookselling-buying-options) ↓ | Query the Stellar DEX order book for any asset pair; supports live polling. |
+| [`useTrades()`](#usestrictpublickey-options) ↓ | Fetch DEX trade history for an account with optional asset pair filtering. |
+| [`useStrictSendPaths()`](#usestrictsendpathssourceasset-sourceamount-destinationassets-options) ↓ | Discover payment paths and exchange rates via Horizon's strict-send endpoint before committing to a swap. |
 | `useClaimableBalances()` | List claimable balances for an account. |
 
 #### Payments & operations (write)
@@ -1402,3 +1404,132 @@ No — the hooks consume configuration from the provider context. Wrap your app 
 ## License
 
 MIT
+
+---
+
+### `useTrades(publicKey, options?)`
+
+Fetch DEX trade history for a given Stellar account from Horizon's `/accounts/{id}/trades` endpoint.
+Supports optional asset pair filtering and cursor-based pagination.
+
+```ts
+import { useTrades } from "stellar-hooks";
+import { Asset } from "@stellar/stellar-sdk";
+
+// Basic usage — account trade history
+const {
+  trades,        // TradeRecord[]
+  isLoading,     // boolean
+  error,         // Error | null
+  lastFetchedAt, // Date | null
+  refetch,       // () => Promise<void>
+} = useTrades("G...", {
+  limit: 20,              // default: 10
+  order: "desc",          // default: "desc"
+  cursor: "12345",        // optional, for pagination
+  refetchInterval: 10000, // optional, poll every 10 s
+});
+
+// With asset pair filter
+const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+const { trades } = useTrades("G...", {
+  baseAsset: Asset.native(),
+  counterAsset: new Asset("USDC", USDC_ISSUER),
+});
+```
+
+Each `TradeRecord` exposes: `id`, `ledger_close_time`, `base_amount`, `base_asset_type`,
+`counter_amount`, `counter_asset_type`, `base_is_seller`, `price`, and more.
+
+---
+
+### `useOrderBook(selling, buying, options?)`
+
+Query the Stellar DEX order book for a given selling/buying asset pair.
+Supports both native XLM and any issued asset. Optionally polls at `refetchInterval` for live price feeds.
+
+```ts
+import { useOrderBook } from "stellar-hooks";
+import { Asset } from "@stellar/stellar-sdk";
+
+const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+function SwapPriceDisplay() {
+  const { bids, asks, isLoading, error, refetch } = useOrderBook(
+    Asset.native(),
+    new Asset("USDC", USDC_ISSUER),
+    { limit: 10, refetchInterval: 5000 },
+  );
+
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  const bestBid = bids[0]?.price ?? "—";
+  const bestAsk = asks[0]?.price ?? "—";
+
+  return (
+    <div>
+      <p>Best Bid: {bestBid} USDC</p>
+      <p>Best Ask: {bestAsk} USDC</p>
+    </div>
+  );
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bids` | `OrderBookLevel[]` | Buy-side price levels (highest first) |
+| `asks` | `OrderBookLevel[]` | Sell-side price levels (lowest first) |
+| `raw` | `OrderBookRecord \| null` | Full raw Horizon response |
+| `isLoading` | `boolean` | `true` while fetching |
+| `error` | `Error \| null` | Last fetch error |
+| `lastFetchedAt` | `Date \| null` | Timestamp of last successful fetch |
+| `refetch` | `() => Promise<void>` | Manually trigger a re-fetch |
+
+---
+
+### `useStrictSendPaths(sourceAsset, sourceAmount, destinationAssets, options?)`
+
+Discover available payment paths and exchange rates via Horizon's `/paths/strict-send` endpoint
+before the user commits to a swap. Automatically re-queries when inputs change, with a configurable
+debounce (default **300 ms**).
+
+```ts
+import { useStrictSendPaths } from "stellar-hooks";
+import { Asset } from "@stellar/stellar-sdk";
+
+const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+function SwapRatePreview({ sendAmount }: { sendAmount: string }) {
+  const { paths, isLoading, error } = useStrictSendPaths(
+    Asset.native(),
+    sendAmount,
+    [new Asset("USDC", USDC_ISSUER)],
+    { debounceMs: 300 }, // default
+  );
+
+  if (isLoading) return <p>Finding best rate…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  const best = paths[0];
+  if (!best) return <p>No paths found.</p>;
+
+  return (
+    <p>
+      Send {best.source_amount} XLM → Receive ~{best.destination_amount} USDC
+    </p>
+  );
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `debounceMs` | `number` | `300` | Delay in ms before re-querying on input change |
+| `enabled` | `boolean` | `true` | Set `false` to disable fetching |
+
+| Return value | Type | Description |
+|---|---|---|
+| `paths` | `PathRecord[]` | Available paths sorted by Horizon (best first) |
+| `isLoading` | `boolean` | `true` while a query is in flight |
+| `error` | `Error \| null` | Last fetch error |
+| `lastFetchedAt` | `Date \| null` | Timestamp of last successful fetch |

@@ -255,3 +255,25 @@ export type {
 
 export { useContractEvents } from "./hooks/useContractEvents";
 export type { UseContractEventsOptions } from "./hooks/useContractEvents";
+
+export { useTrades } from "./hooks/useTrades";
+export type {
+  TradeRecord,
+  UseTradesOptions,
+  UseTradesReturn,
+} from "./hooks/useTrades";
+
+export { useOrderBook } from "./hooks/useOrderBook";
+export type {
+  OrderBookLevel,
+  OrderBookRecord,
+  UseOrderBookOptions,
+  UseOrderBookReturn,
+} from "./hooks/useOrderBook";
+
+export { useStrictSendPaths } from "./hooks/useStrictSendPaths";
+export type {
+  PathRecord,
+  UseStrictSendPathsOptions,
+  UseStrictSendPathsReturn,
+} from "./hooks/useStrictSendPaths";
