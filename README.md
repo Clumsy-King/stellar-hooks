@@ -211,6 +211,25 @@ This hook will gracefully handle timeouts and offline scenarios for each endpoin
 
 ---
 
+### `useTransactionHistory(publicKey, options?)`
+
+Fetch paginated transaction history for a given Stellar account from Horizon.
+
+```ts
+const {
+  transactions,    // Horizon.TransactionResponse[]
+  fetchNextPage,   // () => void
+  hasMore,         // boolean
+  isLoading,       // boolean
+  error,
+} = useTransactionHistory("G...", {
+  limit: 20,       // default: 10
+  order: "desc",   // default: "desc"
+});
+```
+
+---
+
 ### `useLedgerEntry(ledgerKey, options?)`
 
 Read a raw Soroban ledger entry by its `xdr.LedgerKey` without constructing a contract call.
