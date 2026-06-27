@@ -14,6 +14,10 @@ export type { UseStellarBalanceReturn } from "./useStellarBalance";
 
 export { useStellarOffers } from "./useStellarOffers";
 export type { UseStellarOffersOptions, UseStellarOffersReturn } from "./useStellarOffers";
+export { useOffers } from "./useOffers";
+export type { UseOffersOptions, UseOffersReturn } from "./useOffers";
+export { useNetworkConfig } from "./useNetworkConfig";
+export { useHorizonServer } from "./useHorizonServer";
 
 export { useEffects } from "./useEffects";
 export type { UseEffectsOptions, UseEffectsReturn } from "./useEffects";

@@ -35,6 +35,10 @@ export { useLedgerEntry } from "./hooks/useLedgerEntry";
 export { useStellarToml } from "./hooks/useStellarToml";
 export { useAssetMetadata } from "./hooks/useAssetMetadata";
 export { useStellarOffers } from "./hooks/useStellarOffers";
+export { useOffers } from "./hooks/useOffers";
+export type { UseOffersOptions, UseOffersReturn } from "./hooks/useOffers";
+export { useNetworkConfig } from "./hooks/useNetworkConfig";
+export { useHorizonServer } from "./hooks/useHorizonServer";
 export { useEffects } from "./hooks/useEffects";
 export { usePayment } from "./hooks/usePayment";
 export type {

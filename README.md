@@ -92,6 +92,7 @@ Every hook listed below is implemented and exported from the package entry point
 | `useAssets()` | Fetch and list Stellar assets via Horizon. |
 | `useAssetMetadata()` | Fetch asset metadata from a domain's `stellar.toml`. |
 | `useStellarToml()` | Fetch and parse a domain's `stellar.toml`. |
+| `useOffers()` | Fetch open offers for a Stellar account with pagination helpers. |
 | `useStellarOffers()` | Fetch open offers for a Stellar account. |
 | `useOfferBook()` | Fetch the DEX order book for an asset pair. |
 | `useClaimableBalances()` | List claimable balances for an account. |
@@ -211,6 +212,38 @@ Render `networkPassphraseWarning` to surface the issue, or gate signing behind a
 ### `useNetwork()`
 
 Read the active network configuration and switch networks at runtime. All values reflect the currently active network — including any network switch made via `switchNetwork`.
+
+### `useNetworkConfig()`
+
+Read the full active network configuration object from the provider context without drilling props around your tree.
+
+```tsx
+import { useNetworkConfig } from "stellar-hooks";
+
+function NetworkBadge() {
+  const { network, horizonUrl, sorobanRpcUrl, networkPassphrase } = useNetworkConfig();
+
+  return <pre>{JSON.stringify({ network, horizonUrl, sorobanRpcUrl, networkPassphrase }, null, 2)}</pre>;
+}
+```
+
+### `useHorizonServer()`
+
+Return the configured Horizon server instance for custom queries beyond the built-in hooks.
+
+```tsx
+import { useHorizonServer } from "stellar-hooks";
+
+function CustomHorizonExample() {
+  const server = useHorizonServer();
+
+  async function loadAccountOffers(publicKey: string) {
+    return server.offers().forAccount(publicKey).call();
+  }
+
+  return null;
+}
+```
 
 ```ts
 const {

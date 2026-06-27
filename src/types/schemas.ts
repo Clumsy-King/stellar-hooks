@@ -254,6 +254,10 @@ export const TransactionSubmissionResponseSchema = z
 /**
  * Schema for a claimant predicate (recursive, simplified as passthrough).
  */
+export const ClaimantPredicateSchema: z.ZodType<Record<string, unknown>> = z.record(
+  z.string(),
+  z.unknown()
+);
 export const ClaimantPredicateSchema: z.ZodType<Record<string, unknown>> = z
   .record(z.string(), z.unknown());
 

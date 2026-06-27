@@ -128,6 +128,21 @@ export interface CustomNetworkConfig {
   networkPassphrase: string;
 }
 
+export interface UseOffersOptions {
+  enabled?: boolean;
+  refetchInterval?: number;
+  limit?: number;
+}
+
+export interface UseOffersReturn {
+  offers: Horizon.ServerApi.OfferRecord[];
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  nextPage: () => Promise<void>;
+  prevPage: () => Promise<void>;
+}
+
 export const NETWORK_CONFIGS: Record<Exclude<StellarNetwork, "custom">, NetworkConfig> = {
   mainnet: {
     network: "mainnet",
