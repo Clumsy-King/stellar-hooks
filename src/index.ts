@@ -18,6 +18,17 @@ export type {
   UsePathPaymentReturn,
 } from "./hooks/usePathPayment";
 
+export { useAssetBalance } from "./hooks/useAssetBalance";
+export type { AssetDescriptor, UseAssetBalanceReturn } from "./hooks/useAssetBalance";
+
+export { useTrustlines } from "./hooks/useTrustlines";
+export type { TrustlineAsset, UseTrustlinesReturn } from "./hooks/useTrustlines";
+
+export { useAccountMerge } from "./hooks/useAccountMerge";
+export type { UseAccountMergeReturn } from "./hooks/useAccountMerge";
+
+export { useSorobanServer } from "./hooks/useSorobanServer";
+
 // Types
 export type {
   // Network

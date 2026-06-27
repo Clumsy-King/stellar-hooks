@@ -169,6 +169,69 @@ const { data, isLoading, error, refetch } = useLedgerEntry(key, {
 
 ---
 
+---
+
+### `useAssetBalance(publicKey, asset, options?)`
+
+Fetch a specific asset balance (native XLM or issued asset) for a given public key.
+
+```ts
+const { balance, isLoading, error } = useAssetBalance("G...", "native");
+// balance → StellarBalance | null
+
+const { balance } = useAssetBalance("G...", { code: "USDC", issuer: "G..." });
+```
+
+Supports the same `refetchInterval` and `enabled` options as `useStellarAccount`.
+
+---
+
+### `useTrustlines(publicKey)`
+
+List and manage trustlines for an account.
+
+```ts
+const { trustlines, addTrustline, removeTrustline, status } = useTrustlines("G...");
+
+await addTrustline({ code: "USDC", issuer: "G..." });  // add a trustline
+await removeTrustline({ code: "USDC", issuer: "G..." }); // remove (set limit to 0)
+
+// status: "idle" | "submitting" | "success" | "error"
+// Each mutation signs via Freighter and submits through Horizon.
+```
+
+---
+
+### `useAccountMerge()`
+
+Merge the funded account into a destination account via Freighter.
+
+```ts
+const { merge, status, hash, error } = useAccountMerge();
+
+await merge("GDEST...", { confirm: true });
+// Throws if confirm !== true (safety guard against accidental merges).
+```
+
+---
+
+### `useSorobanServer()`
+
+Get a configured `SorobanRpc.Server` instance from the `StellarProvider` context.
+
+```ts
+const server = useSorobanServer();
+// Equivalent to: new SorobanRpc.Server(config.sorobanRpcUrl)
+
+// Useful for ad-hoc RPC calls outside of the existing hooks:
+const account = await server.getAccount("G...");
+const ledgerEntries = await server.getLedgerEntries(key);
+```
+
+Throws a descriptive error if used outside `<StellarProvider>`.
+
+---
+
 ## Provider
 
 Wrap your app with `<StellarProvider>` to configure the network.
@@ -210,6 +273,11 @@ import type {
   UseFreighterReturn,
   TransactionStatus,
   ContractCallOptions,
+  AssetDescriptor,
+  UseAssetBalanceReturn,
+  TrustlineAsset,
+  UseTrustlinesReturn,
+  UseAccountMergeReturn,
 } from "stellar-hooks";
 ```
 
