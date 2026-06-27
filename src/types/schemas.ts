@@ -258,6 +258,8 @@ export const ClaimantPredicateSchema: z.ZodType<Record<string, unknown>> = z.rec
   z.string(),
   z.unknown()
 );
+export const ClaimantPredicateSchema: z.ZodType<Record<string, unknown>> = z
+  .record(z.string(), z.unknown());
 
 /**
  * Schema for a claimant entry in a claimable balance record.

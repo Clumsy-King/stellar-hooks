@@ -518,6 +518,20 @@ export interface StellarProviderProps {
   children: React.ReactNode;
 }
 
+export interface StellarHooksProviderProps {
+  /** Built-in preset (`testnet`, `mainnet`, `futurenet`) or `"custom"` for a private network. @default "testnet" */
+  network?: StellarNetwork | undefined;
+  /** Optional custom Horizon URL to override the network default or define custom. */
+  horizonUrl?: string | undefined;
+  /** Optional custom Soroban RPC URL to override the network default or define custom. */
+  sorobanRpcUrl?: string | undefined;
+  /** Optional custom network passphrase to override the network default or define custom. */
+  networkPassphrase?: string | undefined;
+  /** Backward compatible custom config object. */
+  customConfig?: CustomNetworkConfig | undefined;
+  children: React.ReactNode;
+}
+
 export interface StellarContextValue {
   /** Resolved network configuration (Horizon URL, Soroban RPC URL, passphrase). */
   config: NetworkConfig;

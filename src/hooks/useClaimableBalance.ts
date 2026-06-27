@@ -5,6 +5,10 @@
  */
 
 import { useCallback, useReducer } from "react";
+import { Horizon, Operation } from "@stellar/stellar-sdk";
+import { useStellarContext } from "../context";
+import { useStellarTransaction } from "./useStellarTransaction";
+import type { TransactionStatus } from "../types";
 import {
   Asset,
   Claimant,
@@ -130,6 +134,15 @@ export interface UseClaimBalanceReturn {
   reset: () => void;
 }
 
+export interface UseClaimBalanceOptions {
+  /** Polling timeout in seconds. Default: 60 */
+  timeoutSeconds?: number;
+  /** Callback fired when the transaction is successfully confirmed. */
+  onSuccess?: (hash: string) => void;
+  /** Callback fired when the transaction fails or an error occurs. */
+  onError?: (error: Error) => void;
+}
+
 // ─── List hook reducer ────────────────────────────────────────────────────────
 
 type ListAction =
@@ -233,6 +246,11 @@ export function useClaimableBalances(
 export function useClaimBalance(
   options: UseClaimBalanceOptions = {}
 ): UseClaimBalanceReturn {
+  const { timeoutSeconds, onSuccess, onError } = options;
+  const { submit: submitTx, ...txState } = useStellarTransaction({
+    timeoutSeconds,
+    onSuccess,
+    onError,
   const { onSuccess, onError } = options;
   const { config } = useStellarContext();
   const { signTransaction, publicKey } = useFreighter();
@@ -244,6 +262,8 @@ export function useClaimBalance(
 
   const claim = useCallback(
     async (balanceId: string) => {
+      const operation = Operation.claimClaimableBalance({ balanceId });
+      await submitTx([operation]);
       if (!publicKey) {
         throw new Error("Freighter is not connected. Call connect() first.");
       }
@@ -273,12 +293,12 @@ export function useClaimBalance(
       // 4. Submit and poll via useTransaction internals
       await submitXdr(signedXdr);
     },
-    [publicKey, config, signTransaction, submitXdr]
+    [submitTx]
   );
 
   return {
+    ...txState,
     claim,
-    reset,
     status: txState.status,
     hash: txState.hash,
     error: txState.error,
