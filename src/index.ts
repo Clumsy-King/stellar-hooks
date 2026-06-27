@@ -49,6 +49,7 @@ export type {
 } from "./hooks/useBumpSequence";
 export { usePathPayment } from "./hooks/usePathPayment";
 export { useNetworkStatus } from "./hooks/useNetworkStatus";
+export { useTransactionHistory } from "./hooks/useTransactionHistory";
 export type {
   PathPaymentAsset,
   UsePathPaymentOptions,
@@ -171,6 +172,10 @@ export type {
 export type { StellarTomlData, UseStellarTomlReturn } from "./hooks/useStellarToml";
 export type { AssetMetadata, UseAssetMetadataReturn } from "./hooks/useAssetMetadata";
 export type { UseNetworkStatusArgs, NetworkStatus } from "./hooks/useNetworkStatus";
+export type {
+  UseTransactionHistoryOptions,
+  UseTransactionHistoryReturn,
+} from "./hooks/useTransactionHistory";
 export type { UseStellarOffersOptions, UseStellarOffersReturn } from "./hooks/useStellarOffers";
 export type {
   StellarTomlData,
