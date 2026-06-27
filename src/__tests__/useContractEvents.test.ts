@@ -1,3 +1,10 @@
+/**
+ * @file useContractEvents.test.ts
+ * @description Unit tests for the useContractEvents hook.
+ * @package stellar-hooks
+ * @license MIT
+ */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Mock React hooks ─────────────────────────────────────────────────────────
@@ -9,7 +16,8 @@ vi.mock("react", async () => {
     useCallback: (fn: unknown) => fn,
     useReducer: vi.fn(),
     useEffect: vi.fn(),
-    useRef: vi.fn().mockReturnValue({ current: null }),
+    useRef: vi.fn().mockReturnValue({ current: true }),
+    useRef: vi.fn((val) => ({ current: val })),
   };
 });
 
@@ -17,7 +25,16 @@ vi.mock("react", async () => {
 
 const mockGetEvents = vi.fn();
 
+vi.mock("@stellar/stellar-sdk/rpc", () => ({
+  Server: vi.fn().mockImplementation(() => ({
+    getEvents: mockGetEvents,
+  })),
+}));
+
 vi.mock("@stellar/stellar-sdk", () => ({
+  StrKey: {
+    isValidContract: vi.fn().mockReturnValue(true),
+  },
   rpc: {
     Server: vi.fn().mockImplementation(() => ({
       getEvents: mockGetEvents,
@@ -181,5 +198,61 @@ describe("useContractEvents", () => {
 
     const call = mockGetEvents.mock.calls[0][0];
     expect(call).not.toHaveProperty("startLedger");
+  });
+
+  // ─── mode / pollInterval tests (#258) ──────────────────────────────────────
+
+  it("defaults mode to 'poll'", () => {
+    const hook = useContractEvents({ contractId: "CCONTRACT" });
+    expect(hook.mode).toBe("poll");
+  });
+
+  it("returns mode when explicitly set to 'poll'", () => {
+    const hook = useContractEvents({ contractId: "CCONTRACT", mode: "poll" });
+    expect(hook.mode).toBe("poll");
+  });
+
+  it("returns mode 'stream' when set", () => {
+    const hook = useContractEvents({ contractId: "CCONTRACT", mode: "stream" });
+    expect(hook.mode).toBe("stream");
+  });
+
+  it("dispatches ERROR when mode is 'stream'", () => {
+    vi.mocked(useEffect).mockImplementation((fn) => { (fn as () => void)(); });
+
+    useContractEvents({ contractId: "CCONTRACT", mode: "stream" });
+
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: "ERROR",
+      payload: expect.objectContaining({
+        message: expect.stringContaining("Stream mode is not yet supported"),
+      }),
+    });
+  });
+
+  it("uses pollInterval over refetchInterval when both provided", () => {
+    const hook = useContractEvents({
+      contractId: "CCONTRACT",
+      pollInterval: 3000,
+      refetchInterval: 5000,
+    });
+
+    expect(hook.mode).toBe("poll");
+  });
+
+  it("falls back to refetchInterval when pollInterval is not set", async () => {
+    mockGetEvents.mockResolvedValueOnce({ events: sampleEvents });
+    const hook = useContractEvents({
+      contractId: "CCONTRACT",
+      refetchInterval: 5000,
+    });
+
+    await hook.refetch();
+
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "LOADING" });
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: "SUCCESS",
+      payload: sampleEvents,
+    });
   });
 });

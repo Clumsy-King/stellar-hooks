@@ -1,115 +1,104 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
-import { Horizon } from "@stellar/stellar-sdk";
+/**
+ * @file useStellarAccount.ts
+ * @description Hook for fetching a single Stellar account from Horizon.
+ * @package stellar-hooks
+ * @license MIT
+ */
+
+import { useCallback, useMemo } from "react";
+import { getHorizonServer } from "../utils/memoizedServers";
 import { useStellarContext } from "../context";
-import { parseAccountResponse } from "../utils";
-import type { StellarAccountData } from "../types";
+import type { StellarAccountData, StellarPublicKey } from "../types";
+import { parseAccountResponse, validatePublicKey } from "../utils";
+import { useStellarQuery } from "./useStellarQuery";
 
-// ─── State ─────────────────────────────────────────────────────────────────────
-
-interface AccountState {
-  data: StellarAccountData | null;
-  isLoading: boolean;
-  error: Error | null;
-  lastFetchedAt: Date | null;
-}
-
-type Action =
-  | { type: "FETCH_START" }
-  | { type: "FETCH_SUCCESS"; payload: StellarAccountData }
-  | { type: "FETCH_ERROR"; payload: Error }
-  | { type: "RESET" };
-
-function reducer(state: AccountState, action: Action): AccountState {
-  switch (action.type) {
-    case "FETCH_START":
-      return { ...state, isLoading: true, error: null };
-    case "FETCH_SUCCESS":
-      return { data: action.payload, isLoading: false, error: null, lastFetchedAt: new Date() };
-    case "FETCH_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "RESET":
-      return { data: null, isLoading: false, error: null, lastFetchedAt: null };
-    default:
-      return state;
-  }
-}
-
-// ─── Options ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UseStellarAccountOptions {
-  /** Set to false to skip automatic fetching. Default: true */
+  /** Whether the query is enabled. Defaults to true. */
   enabled?: boolean;
-  /** Poll interval in ms. Set to 0 to disable. Default: 0 */
+  /** Polling interval in milliseconds. If 0, polling is disabled. Defaults to 0. */
   refetchInterval?: number;
+  /**
+   * When true (default), concurrent duplicate requests are suppressed — if a fetch
+   * is already in-flight when the next poll fires, that poll tick is skipped.
+   * Set to false to allow overlapping requests.
+   */
+  deduplicate?: boolean;
 }
 
-export interface UseStellarAccountReturn extends AccountState {
+export interface UseStellarAccountReturn {
+  /** The parsed account data. Matches 'account' in issue #63. */
+  account: StellarAccountData | null;
+  /** Alias for account, maintained for backward compatibility. */
+  data: StellarAccountData | null;
+  isLoading: boolean;
+  isRefetching: boolean;
+  error: Error | null;
+  /** Timestamp of the last successful fetch. */
+  lastFetchedAt: Date | null;
+  /** Manually trigger a refetch of the account data. */
   refetch: () => Promise<void>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Fetch and optionally poll a Stellar account by its public key.
+ * Fetch and optionally poll a single Stellar account from Horizon.
+ *
+ * For multi-account lookups (e.g. fetching several signers or a multisig roster
+ * in parallel), see {@link useStellarAccounts}.
+ *
+ * @param publicKey  Stellar public key (G…) to look up. Pass `null`/`undefined` to suspend the fetch.
+ * @param options    Configuration (enabled, refetchInterval, deduplicate).
  *
  * @example
  * ```tsx
- * const { data, isLoading, error } = useStellarAccount("G...");
- *
- * const xlmBalance = data?.balances.find(b => b.isNative);
+ * const { account, isLoading, error, refetch, lastFetchedAt } = useStellarAccount(
+ *   "GAAZI4...",
+ *   { refetchInterval: 10_000 },
+ * );
  * ```
  */
 export function useStellarAccount(
-  publicKey: string | null | undefined,
-  options: UseStellarAccountOptions = {}
+  publicKey: StellarPublicKey | null | undefined,
+  options: UseStellarAccountOptions = {},
 ): UseStellarAccountReturn {
-  const { enabled = true, refetchInterval = 0 } = options;
+  const { enabled = true, refetchInterval = 0, deduplicate = true } = options;
   const { config } = useStellarContext();
 
-  const [state, dispatch] = useReducer(reducer, {
-    data: null,
-    isLoading: false,
-    error: null,
-    lastFetchedAt: null,
-  });
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetch = useCallback(async () => {
-    if (!publicKey) return;
-
-    dispatch({ type: "FETCH_START" });
-
-    try {
-      const server = new Horizon.Server(config.horizonUrl);
-      const raw = await server.loadAccount(publicKey);
-      dispatch({ type: "FETCH_SUCCESS", payload: parseAccountResponse(raw) });
-    } catch (err) {
-      dispatch({
-        type: "FETCH_ERROR",
-        payload: err instanceof Error ? err : new Error(String(err)),
-      });
-    }
+  const fetchAccount = useCallback(async (): Promise<StellarAccountData | null> => {
+    if (!publicKey) return null;
+    validatePublicKey(publicKey);
+    const server = getHorizonServer(config.horizonUrl);
+    const rawAccount = await server.loadAccount(publicKey);
+    return parseAccountResponse(rawAccount);
   }, [publicKey, config.horizonUrl]);
 
-  // Initial fetch + re-fetch when publicKey or config changes
-  useEffect(() => {
-    if (!enabled || !publicKey) {
-      dispatch({ type: "RESET" });
-      return;
-    }
-    void fetch();
-  }, [enabled, publicKey, fetch]);
+  const state = useStellarQuery<StellarAccountData | null>(fetchAccount, {
+    enabled: enabled && Boolean(publicKey),
+    refetchInterval,
+    deduplicate,
+    initialData: null,
+  });
 
-  // Polling
-  useEffect(() => {
-    if (!enabled || !publicKey || refetchInterval <= 0) return;
-
-    intervalRef.current = setInterval(() => void fetch(), refetchInterval);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [enabled, publicKey, refetchInterval, fetch]);
-
-  return { ...state, refetch: fetch };
+  return useMemo(
+    () => ({
+      account: state.data,
+      data: state.data,
+      isLoading: state.isLoading,
+      isRefetching: state.isRefetching,
+      error: state.error,
+      lastFetchedAt: state.lastFetchedAt,
+      refetch: state.refetch,
+    }),
+    [
+      state.data,
+      state.isLoading,
+      state.isRefetching,
+      state.error,
+      state.lastFetchedAt,
+      state.refetch,
+    ],
+  );
 }

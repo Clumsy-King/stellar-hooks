@@ -1,24 +1,62 @@
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import {
   isConnected,
+  isAllowed,
   getAddress,
-  getNetwork,
+  getNetworkDetails,
   requestAccess,
   signTransaction,
   signAuthEntry,
+  signMessage,
 } from "@stellar/freighter-api";
-import type { FreighterState, SignTransactionOptions, UseFreighterReturn } from "../types";
+import { useOptionalStellarContext } from "../context";
+import type {
+  FreighterState,
+  SignTransactionOptions,
+  UseFreighterOptions,
+  UseFreighterReturn,
+} from "../types";
 
-// ─── State Machine ─────────────────────────────────────────────────────────────
+// ─── Network mismatch helpers ─────────────────────────────────────────────────
+
+function buildNetworkPassphraseWarning(
+  walletNetwork: string | null,
+  expectedPassphrase: string,
+): string {
+  const networkLabel = walletNetwork ?? "a different network";
+  return (
+    `Freighter is connected to ${networkLabel}, which does not match this app's ` +
+    `configured network (${expectedPassphrase}). Switch the network in Freighter or ` +
+    `update your StellarProvider configuration to avoid signing on the wrong network.`
+  );
+}
+
+function getNetworkPassphraseMismatch(
+  isConnected: boolean,
+  walletPassphrase: string | null,
+  expectedPassphrase: string | null,
+): boolean {
+  return Boolean(
+    isConnected &&
+      walletPassphrase &&
+      expectedPassphrase &&
+      walletPassphrase !== expectedPassphrase
+  );
+}
+import { asPublicKey, unsafeAsXdrString, type StellarPublicKey, type StellarXdrString } from "../types";
+
+// ─── State Machine ────────────────────────────────────────────────────────────
 
 type Action =
   | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_CONNECTED"; publicKey: string; network: string; networkPassphrase: string }
+  | { type: "SET_CONNECTED"; publicKey: StellarPublicKey; network: string; networkPassphrase: string }
   | { type: "SET_DISCONNECTED" }
   | { type: "SET_NOT_INSTALLED" }
   | { type: "SET_ERROR"; payload: Error };
 
-function reducer(state: FreighterState, action: Action): FreighterState {
+type WalletReducerState = Omit<FreighterState, "networkPassphraseMismatch" | "networkPassphraseWarning">;
+
+function reducer(state: WalletReducerState, action: Action): WalletReducerState {
   switch (action.type) {
     case "SET_LOADING":
       return { ...state, isLoading: action.payload, error: null };
@@ -36,6 +74,7 @@ function reducer(state: FreighterState, action: Action): FreighterState {
     case "SET_DISCONNECTED":
       return {
         ...state,
+        isInstalled: true,
         isConnected: false,
         publicKey: null,
         network: null,
@@ -52,7 +91,7 @@ function reducer(state: FreighterState, action: Action): FreighterState {
   }
 }
 
-const initial: FreighterState = {
+const initial: Omit<FreighterState, "networkPassphraseMismatch" | "networkPassphraseWarning"> = {
   isInstalled: false,
   isConnected: false,
   publicKey: null,
@@ -71,44 +110,88 @@ const initial: FreighterState = {
  * ```tsx
  * const { isConnected, publicKey, connect } = useFreighter();
  *
- * if (!isConnected) return <button onClick={connect}>Connect Wallet</button>;
+ * if (!isConnected) return <button onClick={connect}>Connect</button>;
  * return <p>Connected: {publicKey}</p>;
  * ```
  */
-export function useFreighter(): UseFreighterReturn {
+export function useFreighter(options?: UseFreighterOptions): UseFreighterReturn {
   const [state, dispatch] = useReducer(reducer, initial);
+  const [isSigningMessage, setIsSigningMessage] = useState(false);
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
+  const stellarContext = useOptionalStellarContext();
+  const expectedNetworkPassphrase =
+    options?.expectedNetworkPassphrase ?? stellarContext?.config.networkPassphrase ?? null;
+  const autoConnect = options?.autoConnect ?? false;
 
-  // Probe on mount
+  const networkPassphraseMismatch = useMemo(
+    () =>
+      getNetworkPassphraseMismatch(
+        state.isConnected,
+        state.networkPassphrase,
+        expectedNetworkPassphrase,
+      ),
+    [state.isConnected, state.networkPassphrase, expectedNetworkPassphrase],
+  );
+
+  const networkPassphraseWarning = useMemo(() => {
+    if (!networkPassphraseMismatch || !expectedNetworkPassphrase) return null;
+    return buildNetworkPassphraseWarning(state.network, expectedNetworkPassphrase);
+  }, [networkPassphraseMismatch, expectedNetworkPassphrase, state.network]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function probe() {
       dispatch({ type: "SET_LOADING", payload: true });
-
       try {
-        const { isConnected: connected } = await isConnected();
+        const { isConnected: connected, error: connErr } = await isConnected();
         if (cancelled) return;
 
-        if (!connected) {
-          // Freighter is not installed or not connected yet
+        if (connErr || !connected) {
           dispatch({ type: "SET_NOT_INSTALLED" });
           return;
         }
 
-        // Check if an address is already authorised
-        const addressResult = await getAddress();
+        const { address, error: addrErr } = await getAddress();
         if (cancelled) return;
 
-        if (!addressResult.error && addressResult.address) {
-          const networkResult = await getNetwork();
+        if (!addrErr && address) {
+          const networkDetails = await getNetworkDetails();
           if (cancelled) return;
-
           dispatch({
             type: "SET_CONNECTED",
-            publicKey: addressResult.address,
-            network: networkResult.network ?? "",
-            networkPassphrase: networkResult.networkPassphrase ?? "",
+            publicKey: asPublicKey(address),
+            network: networkDetails.network ?? "",
+            networkPassphrase: networkDetails.networkPassphrase ?? "",
           });
+        } else if (autoConnect) {
+          setIsAutoConnecting(true);
+          try {
+            const { isAllowed: allowed } = await isAllowed();
+            if (cancelled) return;
+
+            if (allowed) {
+              const { address: reconAddress, error: reconErr } = await requestAccess();
+              if (cancelled) return;
+
+              if (!reconErr && reconAddress) {
+                const networkDetails = await getNetworkDetails();
+                if (cancelled) return;
+                dispatch({
+                  type: "SET_CONNECTED",
+                  publicKey: asPublicKey(reconAddress),
+                  network: networkDetails.network ?? "",
+                  networkPassphrase: networkDetails.networkPassphrase ?? "",
+                });
+              } else {
+                dispatch({ type: "SET_DISCONNECTED" });
+              }
+            } else {
+              dispatch({ type: "SET_DISCONNECTED" });
+            }
+          } finally {
+            if (!cancelled) setIsAutoConnecting(false);
+          }
         } else {
           dispatch({ type: "SET_DISCONNECTED" });
         }
@@ -121,23 +204,33 @@ export function useFreighter(): UseFreighterReturn {
 
     void probe();
     return () => { cancelled = true; };
-  }, []);
+  }, [autoConnect]);
 
   const connect = useCallback(async () => {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
-      await requestAccess();
-      const addressResult = await getAddress();
-      if (addressResult.error || !addressResult.address) {
-        throw new Error(addressResult.error ?? "Failed to get address");
+      try {
+        const { address, error } = await requestAccess();
+        if (error) {
+          dispatch({ type: "SET_ERROR", payload: new Error(error.message || String(error)) });
+          return;
+        }
+        if (!address) {
+          dispatch({ type: "SET_ERROR", payload: new Error("Failed to get address") });
+          return;
+        }
+
+        const networkDetails = await getNetworkDetails();
+        dispatch({
+          type: "SET_CONNECTED",
+          publicKey: asPublicKey(address),
+          network: networkDetails.network ?? "",
+          networkPassphrase: networkDetails.networkPassphrase ?? "",
+        });
+      } catch (innerErr) {
+        dispatch({ type: "SET_ERROR", payload: innerErr instanceof Error ? innerErr : new Error(String(innerErr)) });
+        return;
       }
-      const networkResult = await getNetwork();
-      dispatch({
-        type: "SET_CONNECTED",
-        publicKey: addressResult.address,
-        network: networkResult.network ?? "",
-        networkPassphrase: networkResult.networkPassphrase ?? "",
-      });
     } catch (err) {
       dispatch({ type: "SET_ERROR", payload: err instanceof Error ? err : new Error(String(err)) });
     }
@@ -148,28 +241,74 @@ export function useFreighter(): UseFreighterReturn {
   }, []);
 
   const signTx = useCallback(
-    async (xdr: string, opts?: SignTransactionOptions): Promise<string> => {
-      const result = await signTransaction(xdr, {
-        networkPassphrase: opts?.networkPassphrase,
-        address: opts?.address,
+    async (xdr: StellarXdrString, opts?: SignTransactionOptions): Promise<StellarXdrString> => {
+      const { signedTxXdr, error } = await signTransaction(xdr, {
+        ...(opts?.networkPassphrase && { networkPassphrase: opts.networkPassphrase }),
+        ...(opts?.address && { address: opts.address }),
       });
-      if (result.error) throw new Error(result.error);
-      return result.signedTxXdr;
+      if (error) throw new Error(error.message);
+      return unsafeAsXdrString(signedTxXdr);
     },
     []
   );
 
-  const signEntry = useCallback(async (entryPreimageXdr: string): Promise<string> => {
-    const result = await signAuthEntry(entryPreimageXdr);
-    if (result.error) throw new Error(result.error);
-    return result.signedAuthEntry;
-  }, []);
+  const signEntry = useCallback(
+    async (entryPreimageXdr: StellarXdrString): Promise<StellarXdrString> => {
+      const publicKey = state.publicKey;
+      if (!publicKey) throw new Error("Wallet not connected");
+      const { signedAuthEntry, error } = await signAuthEntry(entryPreimageXdr, {
+        address: publicKey,
+      });
+      if (error) throw new Error(error.message);
+      if (!signedAuthEntry) throw new Error("No signed auth entry returned");
+      return unsafeAsXdrString(signedAuthEntry);
+    },
+    [state.publicKey]
+  );
 
-  return {
-    ...state,
-    connect,
-    disconnect,
-    signTransaction: signTx,
-    signAuthEntry: signEntry,
-  };
+  const signBlob = useCallback(
+    async (blob: string, opts?: { accountToSign?: string }): Promise<string> => {
+      const address = opts?.accountToSign ?? state.publicKey;
+      if (!address) throw new Error("Wallet not connected");
+      const { signedMessage: signed, error } = await signMessage(blob, { address });
+      if (error) throw new Error(error.message);
+      if (!signed) throw new Error("No signed message returned");
+      return signed.toString();
+    },
+    [state.publicKey]
+  );
+
+  const signMsg = useCallback(
+    async (message: string, opts?: { accountToSign?: string }): Promise<string> => {
+      const address = opts?.accountToSign ?? state.publicKey;
+      if (!address) throw new Error("Wallet not connected");
+      setIsSigningMessage(true);
+      try {
+        const { signedMessage: signed, error } = await signMessage(message, { address });
+        if (error) throw new Error(error.message);
+        if (!signed) throw new Error("No signed message returned");
+        return signed.toString();
+      } finally {
+        setIsSigningMessage(false);
+      }
+    },
+    [state.publicKey]
+  );
+
+  return useMemo(
+    () => ({
+      ...state,
+      networkPassphraseMismatch,
+      networkPassphraseWarning,
+      isSigningMessage,
+      isAutoConnecting,
+      connect,
+      disconnect,
+      signTransaction: signTx,
+      signAuthEntry: signEntry,
+      signBlob,
+      signMessage: signMsg,
+    }),
+    [state, networkPassphraseMismatch, networkPassphraseWarning, isSigningMessage, isAutoConnecting, connect, disconnect, signTx, signEntry, signBlob, signMsg]
+  );
 }

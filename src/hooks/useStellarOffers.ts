@@ -1,12 +1,34 @@
+/**
+ * @file useStellarOffers.ts
+ * @description Hook for fetching open offers for a Stellar account.
+ * @package stellar-hooks
+ * @license MIT
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Horizon } from "@stellar/stellar-sdk";
 import { useStellarContext } from "../context";
+import { validatePublicKey } from "../utils";
 
 export interface UseStellarOffersOptions {
   enabled?: boolean;
   refetchInterval?: number;
 }
 
+/**
+ * @example
+ * ```tsx
+ * const {
+ *   offers,        // Horizon.ServerApi.OfferRecord[] — open buy/sell offers
+ *   isLoading,     // boolean
+ *   error,         // Error | null
+ *   lastFetchedAt, // Date | null
+ *   refetch,       // () => Promise<void>
+ * } = useStellarOffers("G...", { refetchInterval: 10_000 });
+ *
+ * // Each offer: { id, selling, buying, amount, price, seller, ... }
+ * ```
+ */
 export interface UseStellarOffersReturn {
   offers: Horizon.ServerApi.OfferRecord[];
   isLoading: boolean;
@@ -39,6 +61,7 @@ export function useStellarOffers(
     setError(null);
 
     try {
+      validatePublicKey(publicKey);
       const server = new Horizon.Server(config.horizonUrl);
       const response = await server.offers().forAccount(publicKey).call();
       setOffers(response.records);
