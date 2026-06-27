@@ -6,7 +6,7 @@
  */
 
 // Provider & context
-export { StellarProvider, useStellarContext } from "./context";
+export { StellarProvider, StellarHooksProvider, useStellarContext } from "./context";
 
 // Hooks
 export { useNetwork } from "./hooks/useNetwork";
@@ -156,6 +156,7 @@ export type {
   LedgerEntryState,
   // Provider
   StellarProviderProps,
+  StellarHooksProviderProps,
   StellarContextValue,
   // Wallets Kit
   WalletsKitOptions,

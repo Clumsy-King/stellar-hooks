@@ -255,7 +255,7 @@ export const TransactionSubmissionResponseSchema = z
  * Schema for a claimant predicate (recursive, simplified as passthrough).
  */
 export const ClaimantPredicateSchema: z.ZodType<Record<string, unknown>> = z
-  .record(z.unknown());
+  .record(z.string(), z.unknown());
 
 /**
  * Schema for a claimant entry in a claimable balance record.
@@ -299,7 +299,7 @@ export const ParsedClaimableBalanceRecordSchema = z.object({
   claimants: z.array(
     z.object({
       destination: StellarAddressSchema,
-      predicate: z.record(z.unknown()),
+      predicate: z.record(z.string(), z.unknown()),
     })
   ),
 });
@@ -452,7 +452,7 @@ export function validateHorizonResponse<T>(
 export function safeValidateHorizonResponse<T>(
   schema: z.ZodType<T>,
   data: unknown
-): z.SafeParseReturnType<unknown, T> {
+): ReturnType<z.ZodType<T>["safeParse"]> {
   return schema.safeParse(data);
 }
 
