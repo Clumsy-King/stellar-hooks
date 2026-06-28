@@ -175,3 +175,12 @@ export type {
   UseStrictSendPathsOptions,
   UseStrictSendPathsReturn,
 } from "./useStrictSendPaths";
+
+export { useAssetSearch } from "./useAssetSearch";
+export type {
+  StellarAssetInfo,
+  StellarAssetRating,
+  StellarAssetTomlInfo,
+  UseAssetSearchOptions,
+  UseAssetSearchReturn,
+} from "./useAssetSearch";

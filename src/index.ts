@@ -288,3 +288,12 @@ export type {
   UseStrictSendPathsOptions,
   UseStrictSendPathsReturn,
 } from "./hooks/useStrictSendPaths";
+
+export { useAssetSearch } from "./hooks/useAssetSearch";
+export type {
+  StellarAssetInfo,
+  StellarAssetRating,
+  StellarAssetTomlInfo,
+  UseAssetSearchOptions,
+  UseAssetSearchReturn,
+} from "./hooks/useAssetSearch";
