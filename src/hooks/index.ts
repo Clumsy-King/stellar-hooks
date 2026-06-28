@@ -184,3 +184,9 @@ export type {
   UseAssetSearchOptions,
   UseAssetSearchReturn,
 } from "./useAssetSearch";
+
+export { useIntersectionObserver } from "./useIntersectionObserver";
+export type {
+  UseIntersectionObserverOptions,
+  UseIntersectionObserverReturn,
+} from "./useIntersectionObserver";
