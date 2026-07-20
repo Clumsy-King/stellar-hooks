@@ -81,7 +81,6 @@ export type {
   UseTradeReturn,
 } from "./hooks/useTrade";
 
-export { useAccountMerge } from "./hooks/useAccountMerge";
 export type {
   UseAccountMergeOptions,
   UseAccountMergeReturn,
@@ -143,7 +142,6 @@ export { useTrustlines } from "./hooks/useTrustlines";
 export type { TrustlineAsset, UseTrustlinesReturn } from "./hooks/useTrustlines";
 
 export { useAccountMerge } from "./hooks/useAccountMerge";
-export type { UseAccountMergeReturn } from "./hooks/useAccountMerge";
 
 export { useSorobanServer } from "./hooks/useSorobanServer";
 
