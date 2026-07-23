@@ -592,13 +592,17 @@ await removeTrustline({ code: "USDC", issuer: "G..." }); // remove (set limit to
 
 ### `useAccountMerge()`
 
-Merge the funded account into a destination account via Freighter.
+Merge the funded account into a destination account via Freighter. This
+permanently closes the source account and transfers its entire XLM balance —
+the operation is irreversible.
 
 ```ts
-const { merge, status, hash, error } = useAccountMerge();
+const { submit, status, hash, error } = useAccountMerge({
+  destination: "GDEST...",
+  memo: "closing out", // optional
+});
 
-await merge("GDEST...", { confirm: true });
-// Throws if confirm !== true (safety guard against accidental merges).
+await submit();
 ```
 
 ---
