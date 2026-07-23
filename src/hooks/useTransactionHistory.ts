@@ -108,8 +108,8 @@ export function useTransactionHistory(
           }
 
           if (response.records.length > 0) {
-            setNextCursor(response.records[response.records.length - 1].paging_token);
-            setPrevCursor(response.records[0].paging_token);
+            setNextCursor(response.records[response.records.length - 1]!.paging_token);
+            setPrevCursor(response.records[0]!.paging_token);
           }
           setHasNext(response.records.length >= limit);
           setHasPrevious(cursor !== undefined);
@@ -123,7 +123,7 @@ export function useTransactionHistory(
           });
 
           if (reversedRecords.length > 0) {
-            setPrevCursor(reversedRecords[0].paging_token);
+            setPrevCursor(reversedRecords[0]!.paging_token);
           }
           setHasNext(true);
           setHasPrevious(response.records.length >= limit);
