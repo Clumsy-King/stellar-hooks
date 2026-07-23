@@ -94,70 +94,74 @@ export function useAssetSearch(
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const search = async (query: string): Promise<void> => {
-    if (!enabled || !query.trim()) {
-      setResults([]);
-      setError(null);
-      return;
-    }
-
-    // Cancel any pending request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Clear any pending debounce
-    if (debounceRef.current !== null) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setIsLoading(true);
-      setError(null);
-      abortControllerRef.current = new AbortController();
-
-      try {
-        const url = `${STELLAR_EXPERT_API_URL}?search=${encodeURIComponent(query.trim())}`;
-        const response = await fetch(url, {
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!response.ok) {
-          // Handle rate limiting (429) with a specific error message
-          if (response.status === 429) {
-            throw new Error("Rate limited by StellarExpert API. Please try again later.");
-          }
-          throw new Error(`StellarExpert API returned ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Extract records from the embedded response
-        const records = data._embedded?.records || [];
-        
-        // Transform records to include parsed code and issuer
-        const transformedResults: StellarAssetInfo[] = records.map((record: StellarAssetInfo) => {
-          const [code, issuer] = record.asset.split("-");
-          return {
-            ...record,
-            code,
-            issuer,
-          };
-        });
-
-        setResults(transformedResults);
-        setLastFetchedAt(new Date());
-      } catch (err) {
-        // Ignore abort errors (from cancellation)
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        setIsLoading(false);
-        abortControllerRef.current = null;
+  const search = (query: string): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      if (!enabled || !query.trim()) {
+        setResults([]);
+        setError(null);
+        resolve();
+        return;
       }
-    }, debounceMs);
+
+      // Cancel any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Clear any pending debounce
+      if (debounceRef.current !== null) {
+        clearTimeout(debounceRef.current);
+      }
+
+      debounceRef.current = setTimeout(async () => {
+        setIsLoading(true);
+        setError(null);
+        abortControllerRef.current = new AbortController();
+
+        try {
+          const url = `${STELLAR_EXPERT_API_URL}?search=${encodeURIComponent(query.trim())}`;
+          const response = await fetch(url, {
+            signal: abortControllerRef.current.signal,
+          });
+
+          if (!response.ok) {
+            // Handle rate limiting (429) with a specific error message
+            if (response.status === 429) {
+              throw new Error("Rate limited by StellarExpert API. Please try again later.");
+            }
+            throw new Error(`StellarExpert API returned ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+
+          // Extract records from the embedded response
+          const records = data._embedded?.records || [];
+
+          // Transform records to include parsed code and issuer
+          const transformedResults: StellarAssetInfo[] = records.map((record: StellarAssetInfo) => {
+            const [code, issuer] = record.asset.split("-");
+            return {
+              ...record,
+              code,
+              issuer,
+            };
+          });
+
+          setResults(transformedResults);
+          setLastFetchedAt(new Date());
+        } catch (err) {
+          // Ignore abort errors (from cancellation)
+          if (err instanceof Error && err.name === "AbortError") {
+            return;
+          }
+          setError(err instanceof Error ? err : new Error(String(err)));
+        } finally {
+          setIsLoading(false);
+          abortControllerRef.current = null;
+          resolve();
+        }
+      }, debounceMs);
+    });
   };
 
   // Cleanup on unmount
