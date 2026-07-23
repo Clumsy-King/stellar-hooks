@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useSorobanContract } from "./useSorobanContract";
-import { rpc } from "@stellar/stellar-sdk";
+import { rpc, xdr } from "@stellar/stellar-sdk";
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────────
 
@@ -328,7 +328,6 @@ describe("useSorobanContract — status transitions", () => {
     expect(result.current.result).toBeNull();
   });
 
-  it("resets state correctly", async () => {
   it("reset() clears all state back to idle", async () => {
     mockSimulateTransaction.mockResolvedValue({
       error: "boom",

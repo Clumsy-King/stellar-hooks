@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 
 const mockFetch = vi.fn();
@@ -69,6 +69,10 @@ const MOCK_EMPTY_RESPONSE = {
 describe("useAssetSearch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns empty results for empty query without fetching", async () => {
@@ -237,7 +241,7 @@ describe("useAssetSearch", () => {
       vi.advanceTimersByTime(300);
     });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isLoading).toBe(false);
 
     // Should only call fetch once with the last query
     expect(mockFetch).toHaveBeenCalledTimes(1);
