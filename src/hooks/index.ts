@@ -86,10 +86,7 @@ export type {
 } from "./useAccountFlags";
 
 export { useAccountMerge } from "./useAccountMerge";
-export type {
-  UseAccountMergeOptions,
-  UseAccountMergeReturn,
-} from "./useAccountMerge";
+export type { UseAccountMergeOptions, UseAccountMergeReturn } from "./useAccountMerge";
 
 export {
   useClaimableBalances,

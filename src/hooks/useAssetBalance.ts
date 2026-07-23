@@ -1,5 +1,5 @@
 import { useStellarAccount, type UseStellarAccountOptions } from "./useStellarAccount";
-import type { StellarBalance } from "../types";
+import type { StellarBalance, StellarPublicKey } from "../types";
 
 export type AssetDescriptor = { code: string; issuer: string } | "native";
 
@@ -10,7 +10,7 @@ export interface UseAssetBalanceReturn {
 }
 
 export function useAssetBalance(
-  publicKey: string | null | undefined,
+  publicKey: StellarPublicKey | null | undefined,
   asset: AssetDescriptor,
   options?: UseStellarAccountOptions
 ): UseAssetBalanceReturn {

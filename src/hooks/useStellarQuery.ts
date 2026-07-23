@@ -88,6 +88,7 @@ export function useStellarQuery<T>(
 
   const stateRef = useRef(state);
   const fetcherRef = useRef(fetcher);
+  const initialDataRef = useRef(initialData);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -98,6 +99,10 @@ export function useStellarQuery<T>(
   useEffect(() => {
     fetcherRef.current = fetcher;
   }, [fetcher]);
+
+  useEffect(() => {
+    initialDataRef.current = initialData;
+  });
 
   const refetch = useCallback(async () => {
     if (!enabled) return;
@@ -121,7 +126,7 @@ export function useStellarQuery<T>(
 
   useEffect(() => {
     if (!enabled) {
-      dispatch({ type: "RESET", payload: initialData });
+      dispatch({ type: "RESET", payload: initialDataRef.current });
       return;
     }
 
@@ -142,7 +147,13 @@ export function useStellarQuery<T>(
         timerRef.current = null;
       }
     };
-  }, [enabled, initialData, refetch, refetchInterval]);
+    // initialData intentionally omitted: read via initialDataRef instead.
+    // Depending on it directly would re-run this effect on every render
+    // whenever a caller passes an inline literal (e.g. `initialData: []`),
+    // since a fresh array/object reference never equals the previous one -
+    // causing an infinite fetch -> render -> fetch loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, refetch, refetchInterval, fetcher]);
 
   return {
     data: state.data,

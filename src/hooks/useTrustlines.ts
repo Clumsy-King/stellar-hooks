@@ -7,8 +7,8 @@ import {
 } from "@stellar/stellar-sdk";
 import { useStellarContext } from "../context";
 import { useFreighter } from "./useFreighter";
-import { useTransaction } from "./useTransaction";
-import type { StellarBalance, TransactionStatus } from "../types";
+import { useTransactionCore } from "./useTransactionCore";
+import { unsafeAsXdrString, unsafeAsAssetIssuer, type StellarBalance, type StellarTransactionError, type TransactionStatus } from "../types";
 
 export type TrustlineAsset = { code: string; issuer: string };
 
@@ -20,7 +20,7 @@ export interface UseTrustlinesReturn {
   removeTrustline: (asset: TrustlineAsset) => Promise<void>;
   status: TransactionStatus;
   hash: string | null;
-  txError: Error | null;
+  txError: StellarTransactionError | null;
   isTxLoading: boolean;
   isTxSuccess: boolean;
   isTxError: boolean;
@@ -61,7 +61,7 @@ function parseNonNativeBalance(
   const result: StellarBalance = {
     assetType: lineAsset.asset_type,
     assetCode: lineAsset.asset_code,
-    assetIssuer: lineAsset.asset_issuer,
+    assetIssuer: unsafeAsAssetIssuer(lineAsset.asset_issuer),
     balance: b.balance,
     balanceFloat: parseFloat(b.balance),
     buyingLiabilities: "buying_liabilities" in b ? b.buying_liabilities : "0",
@@ -79,7 +79,7 @@ export function useTrustlines(
 ): UseTrustlinesReturn {
   const { config } = useStellarContext();
   const { publicKey: freighterKey, signTransaction } = useFreighter();
-  const { submit: submitXdr, reset, ...txState } = useTransaction({
+  const { submit: submitXdr, ...txState } = useTransactionCore({
     mode: "classic",
   });
   const [listState, listDispatch] = useReducer(listReducer, listInitial);
@@ -135,7 +135,7 @@ export function useTrustlines(
         .setTimeout(60)
         .build();
 
-      const signedXdr = await signTransaction(tx.toXDR(), {
+      const signedXdr = await signTransaction(unsafeAsXdrString(tx.toXDR()), {
         networkPassphrase: config.networkPassphrase,
       });
 
@@ -166,7 +166,7 @@ export function useTrustlines(
         .setTimeout(60)
         .build();
 
-      const signedXdr = await signTransaction(tx.toXDR(), {
+      const signedXdr = await signTransaction(unsafeAsXdrString(tx.toXDR()), {
         networkPassphrase: config.networkPassphrase,
       });
 

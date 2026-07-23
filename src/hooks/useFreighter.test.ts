@@ -15,6 +15,7 @@ import {
 } from "@stellar/freighter-api";
 
 beforeEach(() => {
+  vi.clearAllMocks();
   resetFreighterMocks();
 });
 

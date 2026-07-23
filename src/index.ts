@@ -81,11 +81,7 @@ export type {
   UseTradeReturn,
 } from "./hooks/useTrade";
 
-export { useAccountMerge } from "./hooks/useAccountMerge";
-export type {
-  UseAccountMergeOptions,
-  UseAccountMergeReturn,
-} from "./hooks/useAccountMerge";
+export type { UseAccountMergeOptions, UseAccountMergeReturn } from "./hooks/useAccountMerge";
 
 export {
   useClaimableBalances,
@@ -143,7 +139,6 @@ export { useTrustlines } from "./hooks/useTrustlines";
 export type { TrustlineAsset, UseTrustlinesReturn } from "./hooks/useTrustlines";
 
 export { useAccountMerge } from "./hooks/useAccountMerge";
-export type { UseAccountMergeReturn } from "./hooks/useAccountMerge";
 
 export { useSorobanServer } from "./hooks/useSorobanServer";
 
@@ -193,18 +188,6 @@ export type {
   UseTransactionHistoryReturn,
 } from "./hooks/useTransactionHistory";
 export type { UseStellarOffersOptions, UseStellarOffersReturn } from "./hooks/useStellarOffers";
-export type {
-  StellarTomlData,
-  UseStellarTomlReturn,
-} from "./hooks/useStellarToml";
-export type {
-  AssetMetadata,
-  UseAssetMetadataReturn,
-} from "./hooks/useAssetMetadata";
-export type {
-  UseStellarOffersOptions,
-  UseStellarOffersReturn,
-} from "./hooks/useStellarOffers";
 export type { UseEffectsOptions, UseEffectsReturn } from "./hooks/useEffects";
 export { useOperations } from "./hooks/useOperations";
 export type {
@@ -232,7 +215,7 @@ export type { UseOfferBookOptions } from "./hooks/useOfferBook";
 
 export { useContractId } from "./hooks/useContractId";
 export type {
-  AssetDescriptor,
+  AssetDescriptor as ContractAssetDescriptor,
   UseContractIdReturn,
 } from "./hooks/useContractId";
 
