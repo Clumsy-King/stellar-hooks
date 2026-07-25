@@ -2,7 +2,7 @@
 
 For breaking changes and migration steps, see [MIGRATION.md](MIGRATION.md).
 
-## 0.2.0 — Unreleased
+## 0.2.0 — 2026-07-25
 
 ### Added
 - `useNetwork()` — detect the current Stellar network from the provider
@@ -42,6 +42,19 @@ For breaking changes and migration steps, see [MIGRATION.md](MIGRATION.md).
 - `useLiquidityPool()` — fetch liquidity pool details and reserves
 - `useAccountLiquidityPositions()` — list liquidity pool positions for an account
 - `useContractEvents()` — subscribe to Soroban contract events
+
+### Fixed
+- Resolved an infinite refetch loop and stale-cache bug affecting query-based hooks
+- Repaired several hooks that had been corrupted by unmerged duplicate implementations
+- Removed a duplicate `useAccountMerge` export
+- Made internal `search()` utility properly awaitable; removed unsafe `any` casts in wallet adapters
+- Fixed the cross-platform test script and added the missing `tsd` dependency
+
+### Changed
+- **Breaking:** `useAccountMerge` now exposes a `submit()`-based API (`{ submit, status, hash, error, isLoading, isSuccess, isError, reset }`) matching its documented usage, replacing the previous shape. See [MIGRATION.md](MIGRATION.md) for the update path.
+
+### Testing
+- Repaired corrupted mocks, a fake-timer leak, and several stale assertions across the test suite
 
 ### Fixed
 - `useTransactionHistory()` — fixed duplicate closing bracket syntax error; added `fetchPreviousPage()` and `includeFailed` option; uses `Horizon.ServerApi.TransactionRecord` for correct typing
