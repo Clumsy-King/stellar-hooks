@@ -94,6 +94,12 @@ export function useOrderBook(
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Compare assets by their canonical string form rather than object
+  // reference, and keep the useCallback deps array free of inline
+  // .toString() calls (flagged as a "complex expression" by the lint rule).
+  const sellingKey = selling.toString();
+  const buyingKey = buying.toString();
+
   const refetch = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -108,7 +114,7 @@ export function useOrderBook(
     } finally {
       setIsLoading(false);
     }
-  }, [selling.toString(), buying.toString(), limit, config.horizonUrl]);
+  }, [sellingKey, buyingKey, limit, config.horizonUrl]);
 
   useEffect(() => {
     if (!enabled) return;

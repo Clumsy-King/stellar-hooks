@@ -99,6 +99,10 @@ export function useLedgerEntry(
   const refetch = useCallback(async () => {
     bypassCacheRef.current = true;
     await state.refetch();
+    // `state` itself is intentionally omitted: `state.refetch` is the only
+    // stable field this callback needs, and depending on the whole object
+    // would re-create `refetch` on every data/loading update from useStellarQuery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.refetch]);
 
   return useMemo(
