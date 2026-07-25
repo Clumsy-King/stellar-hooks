@@ -38,6 +38,10 @@ export function useSequenceNumber(
   const refresh = useCallback(async () => {
     setIncrementCount(0);
     await state.refetch();
+    // `state` itself is intentionally omitted: `state.refetch` is the only
+    // stable field this callback needs, and depending on the whole object
+    // would re-create `refresh` on every data/loading update from useStellarQuery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.refetch]);
 
   const sequence = useMemo(() => {
