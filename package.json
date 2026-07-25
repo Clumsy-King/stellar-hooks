@@ -1,6 +1,6 @@
 {
   "name": "stellar-hooks",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sideEffects": false,
   "description": "React hooks for Stellar and Soroban — useFreighter, useStellarAccount, useSorobanContract, useTransaction, and more.",
   "main": "dist/index.js",
