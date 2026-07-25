@@ -45,6 +45,44 @@ npm test
 npm run build
 ```
 
+### Error handling convention
+
+Every hook in this library that can fail during a transaction (build, sign,
+submit, or poll) returns a `StellarTransactionError` object — never a plain
+`Error` instance:
+
+```ts
+type StellarTransactionError =
+  | { type: "network"; message: string }
+  | { type: "transaction"; resultCode: string; message: string }
+  | { type: "timeout"; message: string };
+```
+
+This lets consumers distinguish *why* something failed without parsing
+message strings:
+
+```tsx
+const { error } = useTransaction(/* ... */);
+
+if (error?.type === "network") {
+  // request never reached the network — safe to retry immediately
+} else if (error?.type === "transaction") {
+  // submitted but failed on-chain — inspect error.resultCode
+} else if (error?.type === "timeout") {
+  // took too long — may or may not have succeeded, needs manual check
+}
+```
+
+**When writing a new hook or test:**
+- Any `onError` callback, `error` state field, or rejected promise related
+  to building/signing/submitting/polling a transaction must use this shape,
+  not a bare `Error`.
+- Tests should assert against `error.type` and the relevant field
+  (`message`, `resultCode`), not against `error instanceof Error` or a raw
+  message string — the old plain-`Error` convention was corrected across
+  the hooks in a previous cleanup and no longer reflects actual hook
+  behavior.
+
 ## Submitting Your Contribution
 
 When your work is complete:
