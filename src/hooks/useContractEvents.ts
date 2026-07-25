@@ -1,149 +1,108 @@
-/**
- * @file useContractEvents.ts
- * @description Hook for polling Soroban contract events from RPC.
- * @package stellar-hooks
- * @license MIT
- */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { useFreighter } from "../useFreighter";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
-import * as rpc from "@stellar/stellar-sdk/rpc";
-import { useStellarContext } from "../context";
-import { validateContractId } from "../utils";
+vi.mock("@stellar/freighter-api", () => ({
+  isConnected: vi.fn(),
+  isAllowed: vi.fn(),
+  getUserInfo: vi.fn(),
+  getNetworkDetails: vi.fn(),
+  requestAccess: vi.fn(),
+  signTransaction: vi.fn(),
+  signAuthEntry: vi.fn(),
+}));
 
-export interface UseContractEventsOptions {
-  /** Soroban contract address (C...) */
-  contractId: string;
-  /** Optional array of topic filters for event matching */
-  topics?: string[][];
-  /** Event type filter. Default is "contract" */
-  type?: "system" | "contract" | "diagnostic";
-  /** Max number of events per poll. Default: 100 */
-  limit?: number;
-  /** Starting ledger to query events from */
-  startLedger?: number;
-  /** Interval in milliseconds to continuously stream/poll events. Default: 0 (disabled) */
-  refetchInterval?: number;
-  /** Fetching mode. 'poll' uses repeated RPC calls; 'stream' is reserved for future streaming support. Default: 'poll' */
-  mode?: "poll" | "stream";
-  /** Poll interval in milliseconds (alias for refetchInterval when mode is 'poll'). Takes precedence over refetchInterval when set. */
-  pollInterval?: number;
-}
+import * as FreighterApi from "@stellar/freighter-api";
 
-interface EventsState {
-  events: rpc.Api.EventResponse[];
-  isLoading: boolean;
-  error: Error | null;
-}
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+});
 
-type Action =
-  | { type: "LOADING" }
-  | { type: "SUCCESS"; payload: rpc.Api.EventResponse[] }
-  | { type: "ERROR"; payload: Error };
+describe("useFreighter", () => {
+  it("returns isInstalled: false when Freighter is not installed", async () => {
+    vi.mocked(FreighterApi.isConnected).mockResolvedValue(false);
 
-function reducer(state: EventsState, action: Action): EventsState {
-  switch (action.type) {
-    case "LOADING":
-      return { ...state, isLoading: true, error: null };
-    case "SUCCESS":
-      return { events: action.payload, isLoading: false, error: null };
-    case "ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    default:
-      return state;
-  }
-}
+    const { result } = renderHook(() => useFreighter());
 
-/**
- * Poll or stream Soroban contract events from the RPC endpoint.
- *
- * @example
- * ```tsx
- * const { events, isLoading, error, refetch } = useContractEvents({
- *   contractId: "CABC...XYZ",
- *   startLedger: 100000,
- *   refetchInterval: 5000,
- * });
- *
- * return events.map((e) => <p key={e.id}>{JSON.stringify(e.value)}</p>);
- * ```
- */
-export function useContractEvents(options: UseContractEventsOptions) {
-  const { config } = useStellarContext();
-  const [state, dispatch] = useReducer(reducer, {
-    events: [],
-    isLoading: false,
-    error: null,
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isInstalled).toBe(false);
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.publicKey).toBeNull();
   });
 
-  const mode = options.mode ?? "poll";
-  const interval = options.pollInterval ?? options.refetchInterval ?? 0;
+  it("returns isConnected: false when not yet allowed", async () => {
+    vi.mocked(FreighterApi.isConnected).mockResolvedValue(true);
+    vi.mocked(FreighterApi.isAllowed).mockResolvedValue(false);
 
-  const cursorRef = useRef<string | undefined>();
-  const isMounted = useRef(true);
+    const { result } = renderHook(() => useFreighter());
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      validateContractId(options.contractId);
-      dispatch({ type: "LOADING" });
-      const server = new rpc.Server(config.sorobanRpcUrl);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isInstalled).toBe(true);
+    expect(result.current.isConnected).toBe(false);
+  });
 
-      const filter: rpc.Api.EventFilter = {
-        type: options.type || "contract",
-        contractIds: [options.contractId],
-        ...(options.topics !== undefined && { topics: options.topics }),
-      };
+  it("returns publicKey and network when connected and allowed", async () => {
+    vi.mocked(FreighterApi.isConnected).mockResolvedValue(true);
+    vi.mocked(FreighterApi.isAllowed).mockResolvedValue(true);
+    vi.mocked(FreighterApi.getUserInfo).mockResolvedValue({
+      publicKey: "GABC123",
+    } as any);
+    vi.mocked(FreighterApi.getNetworkDetails).mockResolvedValue({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    } as any);
 
-      const response = await server.getEvents({
-        ...(options.startLedger !== undefined && { startLedger: options.startLedger }),
-        ...(cursorRef.current !== undefined && { cursor: cursorRef.current }),
-        filters: [filter],
-        limit: options.limit ?? 100,
-      });
+    const { result } = renderHook(() => useFreighter());
 
-      if (isMounted.current && response.events) {
-        if (response.events.length > 0) {
-          const lastEvent = response.events[response.events.length - 1];
-          if (lastEvent) cursorRef.current = lastEvent.pagingToken;
-        }
-        dispatch({ type: "SUCCESS", payload: response.events });
-      }
-    } catch (err) {
-      if (isMounted.current) {
-        dispatch({ type: "ERROR", payload: err instanceof Error ? err : new Error(String(err)) });
-      }
-    }
-  }, [config.sorobanRpcUrl, options.contractId, options.type, options.topics, options.startLedger, options.limit]);
+    await waitFor(() => expect(result.current.isConnected).toBe(true));
+    expect(result.current.publicKey).toBe("GABC123");
+    expect(result.current.network).toBe("TESTNET");
+  });
 
-  useEffect(() => {
-    if (mode === "stream") {
-      dispatch({
-        type: "ERROR",
-        payload: new Error(
-          "Stream mode is not yet supported. Use mode: 'poll' (default) instead."
-        ),
-      });
-      return;
-    }
+  it("connect() calls requestAccess and re-checks status", async () => {
+    vi.mocked(FreighterApi.isConnected).mockResolvedValue(true);
+    vi.mocked(FreighterApi.isAllowed).mockResolvedValue(false);
+    vi.mocked(FreighterApi.requestAccess).mockResolvedValue(undefined as any);
 
-    isMounted.current = true;
-    fetchEvents();
+    const { result } = renderHook(() => useFreighter());
 
-    let intervalId: ReturnType<typeof setInterval>;
-    if (interval > 0) {
-      intervalId = setInterval(fetchEvents, interval);
-    }
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    return () => {
-      isMounted.current = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [fetchEvents, interval, mode]);
+    vi.mocked(FreighterApi.isAllowed).mockResolvedValue(true);
+    vi.mocked(FreighterApi.getUserInfo).mockResolvedValue({
+      publicKey: "GABC123",
+    } as any);
+    vi.mocked(FreighterApi.getNetworkDetails).mockResolvedValue({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    } as any);
 
-  return {
-    ...state,
-    mode,
-    refetch: fetchEvents,
-    stop: () => { isMounted.current = false; },
-    start: () => { isMounted.current = true; fetchEvents(); }
-  };
-}
+    await act(async () => {
+      await result.current.connect();
+    });
+
+    expect(FreighterApi.requestAccess).toHaveBeenCalled();
+    await waitFor(() => expect(result.current.isConnected).toBe(true));
+  });
+
+  it("disconnect() clears publicKey and connected state", async () => {
+    vi.mocked(FreighterApi.isConnected).mockResolvedValue(true);
+    vi.mocked(FreighterApi.isAllowed).mockResolvedValue(true);
+    vi.mocked(FreighterApi.getUserInfo).mockResolvedValue({
+      publicKey: "GABC123",
+    } as any);
+    vi.mocked(FreighterApi.getNetworkDetails).mockResolvedValue({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    } as any);
+
+    const { result } = renderHook(() => useFreighter());
+    await waitFor(() => expect(result.current.isConnected).toBe(true));
+
+    act(() => result.current.disconnect());
+
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.publicKey).toBeNull();
+  });
+});
