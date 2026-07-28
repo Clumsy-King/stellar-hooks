@@ -77,6 +77,9 @@ Every hook listed below is implemented and exported from the package entry point
 | `useWalletConnect()` | WalletConnect v2 adapter for Stellar / Freighter Mobile. |
 | [`useNetwork()`](#usenetwork) ↓ | Read the active network configuration and switch networks at runtime. |
 | [`useStellarNetwork()`](#usestellarnetwork) ↓ | Read the active network and switch networks dynamically via `setNetwork()` — no page reload required. |
+| [`useNetworkConfig()`](#usenetworkconfig) ↓ | Read the full active network configuration object from the provider context. |
+| [`useHorizonServer()`](#usehorizonserver) ↓ | Return the configured Horizon server instance for custom queries. |
+| [`useNetworkStatus()`](#usenetworkstatusoptions) ↓ | Monitor Horizon and RPC health for network status indicators in dApp UIs. |
 
 #### Account & ledger data (read)
 
@@ -98,6 +101,15 @@ Every hook listed below is implemented and exported from the package entry point
 | [`useTrades()`](#usestrictpublickey-options) ↓ | Fetch DEX trade history for an account with optional asset pair filtering. |
 | [`useStrictSendPaths()`](#usestrictsendpathssourceasset-sourceamount-destinationassets-options) ↓ | Discover payment paths and exchange rates via Horizon's strict-send endpoint before committing to a swap. |
 | `useClaimableBalances()` | List claimable balances for an account. |
+| [`useAssetBalance()`](#useassetbalancepublickey-asset-options) ↓ | Fetch a specific asset balance (native or issued) for a given public key. |
+| [`useTrustlines()`](#usetrustlinespublickey) ↓ | List and manage trustlines for an account. |
+| [`useTransactionHistory()`](#usetransactionhistorypublickey-options) ↓ | Fetch paginated transaction history for an account from Horizon. |
+| `useSequenceNumber()` | Track and auto-increment the sequence number for an account. |
+| `useFeeStats()` | Fetch recent fee statistics (percentiles) from Horizon. |
+| `useOfferBook()` | Fetch the order book for a given asset pair. |
+| `useLiquidityPool()` | Fetch a liquidity pool's details by pool ID. |
+| `useAccountLiquidityPositions()` | List liquidity pool positions for a given account. |
+| `useAssetSearch()` | Search Stellar assets via the StellarExpert API. |
 
 #### Payments & operations (write)
 
@@ -124,6 +136,9 @@ For a cross-hook breakdown of how `error`, `isError`, `refetch`, and `reset` beh
 |------|-------------|
 | [`useSorobanContract()`](#usesorobancontractoptions) ↓ | Simulate → sign → submit → poll a Soroban contract call in one hook. |
 | [`useLedgerEntry()`](#useledgerentryledgerkey-options) ↓ | Read a raw Soroban ledger entry without constructing a contract call. |
+| [`useSorobanServer()`](#usesorobanserver) ↓ | Get a configured `SorobanRpc.Server` instance from the provider context. |
+| `useContractEvents()` | Poll Soroban contract events from RPC. |
+| `useContractId()` | Compute a contract ID from an asset descriptor (issuer + code). |
 
 ---
 
@@ -778,17 +793,6 @@ This repository uses Changesets for automated changelog generation, version bump
 - After a changeset is merged into `main`, the GitHub Actions release workflow will publish the package automatically.
 - To enable automated publishing, add `NPM_TOKEN` to repository secrets.
 
----
-
-## Roadmap
-
-- [x] `usePayment()` — send XLM / asset payments with one hook
-- [x] `useClaimableBalance()` — list and claim claimable balances
-- [x] `usePathPayment()` — strict send / receive path payment hook
-- [x] `useStellarToml()` — fetch and parse a domain's `stellar.toml`
-- [x] React Query / SWR adapters — `@stellar-hooks/query` and `@stellar-hooks/swr`
-
----
 
 ## FAQ
 
