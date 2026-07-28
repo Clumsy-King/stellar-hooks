@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for case-only path collisions
+        run: node scripts/check-case-collisions.mjs
+
       - name: Lint
         run: npm run lint
 
