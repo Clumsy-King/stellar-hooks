@@ -11,6 +11,7 @@ import { useCallback, useReducer } from "react";
 import { TransactionBuilder, Horizon } from "@stellar/stellar-sdk";
 import * as rpc from "@stellar/stellar-sdk/rpc";
 import { useStellarContext } from "../context";
+import { useHookActivityDebug } from "../devtools/useHookActivityDebug";
 import type { TransactionState, TransactionStatus, StellarXdrString, StellarTxHash, StellarTransactionError } from "../types";
 import { asTxHash } from "../types";
 import { sleep, backoff } from "../utils";
@@ -22,6 +23,8 @@ export interface UseTransactionCoreOptions {
   mode?: "soroban" | "classic";
   /** Polling timeout in seconds. Default: 60 */
   timeoutSeconds?: number;
+  /** Friendly label shown in the development hook overlay. */
+  debugLabel?: string;
   /** Callback fired when the transaction is successfully confirmed. */
   onSuccess?: (hash: string) => void;
   /** Callback fired when the transaction fails or an error occurs. */
@@ -71,9 +74,21 @@ const initial: TransactionState = {
 export function useTransactionCore(
   options: UseTransactionCoreOptions = {},
 ): UseTransactionCoreReturn {
-  const { mode = "soroban", timeoutSeconds = 60, onSuccess, onError } = options;
+  const {
+    mode = "soroban",
+    timeoutSeconds = 60,
+    debugLabel = "useTransactionCore",
+    onSuccess,
+    onError,
+  } = options;
   const { config } = useStellarContext();
   const [state, dispatch] = useReducer(reducer, initial);
+
+  useHookActivityDebug({
+    name: debugLabel,
+    status: state.status,
+    error: state.error,
+  });
 
   const submit = useCallback(
     async (signedXdr: StellarXdrString) => {

@@ -62,6 +62,7 @@ export function useLiquidityPool(
     enabled: enabled && Boolean(poolId),
     refetchInterval,
     initialData: null,
+    debugLabel: "useLiquidityPool",
   });
 
   return useMemo(

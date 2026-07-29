@@ -163,6 +163,7 @@ export function useStellarAccounts(
     refetchInterval,
     deduplicate,
     initialData: null,
+    debugLabel: "useStellarAccounts",
   });
 
   return useMemo(() => {

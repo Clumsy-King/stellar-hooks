@@ -293,6 +293,28 @@
         "default": "./dist/hooks/useMultiSig.js"
       }
     },
+    "./useMultiOperationTransaction": {
+      "types": "./dist/hooks/useMultiOperationTransaction.d.ts",
+      "import": {
+        "types": "./dist/hooks/useMultiOperationTransaction.d.mts",
+        "default": "./dist/hooks/useMultiOperationTransaction.mjs"
+      },
+      "require": {
+        "types": "./dist/hooks/useMultiOperationTransaction.d.ts",
+        "default": "./dist/hooks/useMultiOperationTransaction.js"
+      }
+    },
+    "./HookActivityOverlay": {
+      "types": "./dist/devtools/HookActivityOverlay.d.ts",
+      "import": {
+        "types": "./dist/devtools/HookActivityOverlay.d.mts",
+        "default": "./dist/devtools/HookActivityOverlay.mjs"
+      },
+      "require": {
+        "types": "./dist/devtools/HookActivityOverlay.d.ts",
+        "default": "./dist/devtools/HookActivityOverlay.js"
+      }
+    },
     "./useNetwork": {
       "types": "./dist/hooks/useNetwork.d.ts",
       "import": {
@@ -658,13 +680,15 @@
     "test": "cross-env NODE_OPTIONS=\"--experimental-require-module\" vitest run",
     "test:watch": "vitest",
     "test:types": "tsd --files src/types/branded.test-d.ts",
+    "test:tree-shaking": "node scripts/test-tree-shaking.mjs",
+    "test:e2e": "playwright test",
     "prepare": "husky",
     "prepublishOnly": "npm run build",
     "release": "semantic-release",
     "release:dry-run": "semantic-release --dry-run",
     "size": "npm run build && size-limit",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "npm run docs:typedoc:all && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "docs:typedoc": "typedoc",
     "docs:typedoc:all": "npm run docs:typedoc && cd packages/query && npm run docs:build && cd ../swr && npm run docs:build && cd ../..",
@@ -749,6 +773,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.1",
     "react-test-renderer": "^18.3.0",
+    "rollup-plugin-visualizer": "^7.0.1",
     "semantic-release": "25.0.5",
     "size-limit": "^12.1.0",
     "tsd": "^0.33.0",

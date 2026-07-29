@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { xdr } from "@stellar/stellar-sdk";
 import * as rpc from "@stellar/stellar-sdk/rpc";
 import { useStellarContext } from "../context";
@@ -94,6 +94,7 @@ export function useLedgerEntry(
     enabled: enabled && Boolean(ledgerKey),
     refetchInterval,
     initialData: null,
+    debugLabel: "useLedgerEntry",
   });
 
   const refetch = useCallback(async () => {
@@ -116,4 +117,43 @@ export function useLedgerEntry(
     }),
     [state.data, state.isLoading, state.isRefetching, state.error, state.lastFetchedAt, refetch]
   ) as LedgerEntryState;
+}
+
+/**
+ * React Suspense-compatible variant of {@link useLedgerEntry}.
+ * Throws a Promise during data fetching for `<Suspense>` boundaries
+ * and throws Errors for `<ErrorBoundary>` boundaries.
+ */
+export function useSuspenseLedgerEntry(
+  ledgerKey: xdr.LedgerKey | null | undefined,
+  options: UseLedgerEntryOptions = {},
+): LedgerEntryState {
+  const state = useLedgerEntry(ledgerKey, options);
+  const promiseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+
+  if (!promiseRef.current) {
+    let resolveFn!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      resolveFn = resolve;
+    });
+    promiseRef.current = { promise, resolve: resolveFn };
+  }
+
+  useEffect(() => {
+    if (!state.isLoading && promiseRef.current) {
+      promiseRef.current.resolve();
+      promiseRef.current = null;
+    }
+  }, [state.isLoading]);
+
+  if ((options.enabled ?? true) && Boolean(ledgerKey)) {
+    if (state.error) {
+      throw state.error;
+    }
+    if (state.isLoading && state.data === null && promiseRef.current) {
+      throw promiseRef.current.promise;
+    }
+  }
+
+  return state;
 }

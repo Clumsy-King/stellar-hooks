@@ -62,6 +62,7 @@ export function useStellarTransaction(options: UseStellarTransactionOptions = {}
   const { submit: submitXdr, reset, status, hash, error, isLoading, isSuccess, isError } = useTransactionCore({
     mode: "classic",
     timeoutSeconds,
+    debugLabel: "useStellarTransaction",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });

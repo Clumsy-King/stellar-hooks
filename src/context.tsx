@@ -6,7 +6,15 @@
  */
 
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
-import type { StellarContextValue, StellarProviderProps, StellarHooksProviderProps, StellarNetwork, CustomNetworkConfig, NetworkConfig } from "./types";
+import type {
+  HookActivitySnapshot,
+  StellarContextValue,
+  StellarProviderProps,
+  StellarHooksProviderProps,
+  StellarNetwork,
+  CustomNetworkConfig,
+  NetworkConfig,
+} from "./types";
 import { NETWORK_CONFIGS } from "./types";
 
 const NETWORK_STORAGE_KEY = "stellar-hooks:network";
@@ -16,7 +24,25 @@ interface StellarContextInternalValue extends StellarContextValue {
   switchNetwork: (newNetwork: StellarNetwork, newCustomConfig?: CustomNetworkConfig) => void;
 }
 
+interface HookActivityRegistration {
+  id?: string;
+  name: string;
+  status: string;
+  lastError: string | null;
+}
+
+interface StellarHookDebugContextValue {
+  entries: HookActivitySnapshot[];
+  register: (entry: HookActivityRegistration) => string;
+  update: (id: string, entry: Omit<HookActivityRegistration, "id">) => void;
+  unregister: (id: string) => void;
+}
+
 const StellarContext = createContext<StellarContextInternalValue | null>(null);
+const StellarHookDebugContext = createContext<StellarHookDebugContextValue | null>(
+  null,
+);
+let hookActivityCounter = 0;
 
 /**
  * Wrap your app (or the portion that needs Stellar) with this provider.
@@ -52,6 +78,7 @@ export function StellarHooksProvider({
   );
 
   const requestCache = useMemo(() => new Map<string, Promise<unknown>>(), []);
+  const [hookEntries, setHookEntries] = useState<HookActivitySnapshot[]>([]);
 
   useEffect(() => {
     const savedNetwork = localStorage.getItem(NETWORK_STORAGE_KEY) as StellarNetwork;
@@ -109,8 +136,69 @@ export function StellarHooksProvider({
     [config, network, switchNetwork, requestCache]
   );
 
+  const registerHookActivity = useCallback(
+    (entry: HookActivityRegistration) => {
+      const id = entry.id ?? `hook-${++hookActivityCounter}`;
+      const snapshot: HookActivitySnapshot = {
+        id,
+        name: entry.name,
+        status: entry.status,
+        lastError: entry.lastError,
+        updatedAt: new Date(),
+      };
+
+      setHookEntries((previous) => {
+        const filtered = previous.filter((item) => item.id !== id);
+        return [snapshot, ...filtered].sort(
+          (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
+        );
+      });
+
+      return id;
+    },
+    [],
+  );
+
+  const updateHookActivity = useCallback(
+    (id: string, entry: Omit<HookActivityRegistration, "id">) => {
+      setHookEntries((previous) => {
+        const nextEntry: HookActivitySnapshot = {
+          id,
+          name: entry.name,
+          status: entry.status,
+          lastError: entry.lastError,
+          updatedAt: new Date(),
+        };
+
+        const filtered = previous.filter((item) => item.id !== id);
+        return [nextEntry, ...filtered].sort(
+          (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
+        );
+      });
+    },
+    [],
+  );
+
+  const unregisterHookActivity = useCallback((id: string) => {
+    setHookEntries((previous) => previous.filter((entry) => entry.id !== id));
+  }, []);
+
+  const debugValue = useMemo<StellarHookDebugContextValue>(
+    () => ({
+      entries: hookEntries,
+      register: registerHookActivity,
+      update: updateHookActivity,
+      unregister: unregisterHookActivity,
+    }),
+    [hookEntries, registerHookActivity, unregisterHookActivity, updateHookActivity],
+  );
+
   return (
-    <StellarContext.Provider value={value}>{children}</StellarContext.Provider>
+    <StellarContext.Provider value={value}>
+      <StellarHookDebugContext.Provider value={debugValue}>
+        {children}
+      </StellarHookDebugContext.Provider>
+    </StellarContext.Provider>
   );
 }
 
@@ -144,6 +232,10 @@ export function StellarProvider({
  */
 export function useOptionalStellarContext(): StellarContextInternalValue | null {
   return useContext(StellarContext);
+}
+
+export function useOptionalStellarHookDebugContext(): StellarHookDebugContextValue | null {
+  return useContext(StellarHookDebugContext);
 }
 
 /**

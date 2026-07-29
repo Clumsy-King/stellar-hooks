@@ -235,6 +235,7 @@ export function useClaimBalance(
   const { signTransaction, publicKey } = useFreighter();
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
+    debugLabel: "useClaimBalance",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });
@@ -361,6 +362,7 @@ export function useCreateClaimableBalance(
   const { signTransaction, publicKey } = useFreighter();
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
+    debugLabel: "useCreateClaimableBalance",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });

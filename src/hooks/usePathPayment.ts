@@ -154,6 +154,7 @@ export function usePathPayment(
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
     timeoutSeconds,
+    debugLabel: "usePathPayment",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });
