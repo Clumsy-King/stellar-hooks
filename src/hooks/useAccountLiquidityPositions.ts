@@ -53,6 +53,7 @@ export function useAccountLiquidityPositions(
     enabled: enabled && Boolean(publicKey),
     refetchInterval,
     initialData: [],
+    debugLabel: "useAccountLiquidityPositions",
   });
 
   return useMemo(

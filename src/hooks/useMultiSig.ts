@@ -69,6 +69,7 @@ export function useMultiSig(options: UseMultiSigOptions = {}): UseMultiSigReturn
   const { submit: submitXdr, reset: txReset, ...txState } = useTransactionCore({
     mode: "classic",
     timeoutSeconds,
+    debugLabel: "useMultiSig",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });

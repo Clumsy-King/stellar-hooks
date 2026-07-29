@@ -97,6 +97,7 @@ export function useFeeStats(
     enabled,
     refetchInterval,
     initialData: null,
+    debugLabel: "useFeeStats",
   });
 
   const recommendedFee = useMemo(() => {

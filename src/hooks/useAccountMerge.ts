@@ -68,8 +68,10 @@ export function useAccountMerge(
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
     ...(onSuccess && { onSuccess }),
+    debugLabel: "useAccountMerge",
     ...(onError && { onError }),
   });
+
 
   const submit = useCallback(async () => {
     if (!publicKey) {

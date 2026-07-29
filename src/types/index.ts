@@ -468,8 +468,21 @@ export interface ContractCallOptions<TResult = unknown> {
   parseResult?: (scVal: xdr.ScVal) => TResult;
 }
 
+export interface SorobanSimulationEstimate {
+  /** Estimated resource fee from simulation, when provided by Soroban RPC. */
+  resourceFee: string | null;
+  /** Estimated CPU instruction count from simulation, when provided. */
+  instructions: string | number | null;
+  /** Raw `cost` payload returned by Soroban RPC for advanced inspection. */
+  cost: unknown | null;
+}
+
 export interface UseContractCallReturn<TResult = unknown>
   extends TransactionState<TResult> {
+  /** Most recent raw simulation response captured by the hook, or `null`. */
+  simulation: rpc.Api.SimulateTransactionResponse | null;
+  /** Normalized fee/instruction estimate derived from the latest simulation. */
+  estimatedCost: SorobanSimulationEstimate | null;
   /**
    * Execute the contract call (Simulation -> Signing -> Submission -> Polling).
    */
@@ -559,6 +572,19 @@ export interface StellarContextValue {
   network: StellarNetwork;
   /** Provider-scoped in-memory map for deduplicating in-flight requests. */
   requestCache: Map<string, Promise<unknown>>;
+}
+
+export interface HookActivitySnapshot {
+  /** Stable internal identifier for a mounted hook instance. */
+  id: string;
+  /** Hook name shown in the dev overlay. */
+  name: string;
+  /** Current lifecycle status for the hook instance. */
+  status: string;
+  /** Most recent error message, if any. */
+  lastError: string | null;
+  /** Timestamp of the most recent state update. */
+  updatedAt: Date;
 }
 
 // ─── Stellar Wallets Kit ──────────────────────────────────────────────────────

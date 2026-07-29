@@ -81,6 +81,7 @@ export function useTrustlines(
   const { publicKey: freighterKey, signTransaction } = useFreighter();
   const { submit: submitXdr, ...txState } = useTransactionCore({
     mode: "classic",
+    debugLabel: "useTrustlines",
   });
   const [listState, listDispatch] = useReducer(listReducer, listInitial);
   const mountedRef = useRef(true);

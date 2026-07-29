@@ -17,7 +17,16 @@ import type { Transaction } from "@stellar/stellar-sdk";
 import * as rpc from "@stellar/stellar-sdk/rpc";
 import { useStellarContext } from "../context";
 import { useFreighter } from "./useFreighter";
-import type { ContractCallOptions, UseContractCallReturn, TransactionStatus, StellarContractId, StellarTxHash, StellarTransactionError } from "../types";
+import { useHookActivityDebug } from "../devtools/useHookActivityDebug";
+import type {
+  ContractCallOptions,
+  SorobanSimulationEstimate,
+  UseContractCallReturn,
+  TransactionStatus,
+  StellarContractId,
+  StellarTxHash,
+  StellarTransactionError,
+} from "../types";
 import { unsafeAsXdrString, asTxHash, unsafeAsTxHash } from "../types";
 import { sleep, backoff, validateContractId } from "../utils";
 
@@ -28,12 +37,27 @@ interface ContractState<TResult> {
   hash: StellarTxHash | null;
   result: TResult | null;
   error: StellarTransactionError | null;
+  simulation: rpc.Api.SimulateTransactionResponse | null;
+  estimatedCost: SorobanSimulationEstimate | null;
 }
 
 type Action<TResult> =
   | { type: "RESET" }
   | { type: "BUILDING" }
-  | { type: "SIGNING" }
+  | {
+      type: "SIMULATION";
+      payload: {
+        simulation: rpc.Api.SimulateTransactionResponse;
+        estimatedCost: SorobanSimulationEstimate;
+      };
+    }
+  | {
+      type: "SIGNING";
+      payload: {
+        simulation: rpc.Api.SimulateTransactionResponse;
+        estimatedCost: SorobanSimulationEstimate;
+      };
+    }
   | { type: "SUBMITTING" }
   | { type: "POLLING" }
   | { type: "SUCCESS"; payload: TResult; hash: StellarTxHash }
@@ -46,17 +70,48 @@ function createReducer<TResult>() {
   ): ContractState<TResult> {
     switch (action.type) {
       case "RESET":
-        return { status: "idle", hash: null, result: null, error: null };
+        return {
+          status: "idle",
+          hash: null,
+          result: null,
+          error: null,
+          simulation: null,
+          estimatedCost: null,
+        };
       case "BUILDING":
-        return { ...state, status: "building", error: null };
+        return {
+          ...state,
+          status: "building",
+          error: null,
+          simulation: null,
+          estimatedCost: null,
+        };
+      case "SIMULATION":
+        return {
+          ...state,
+          simulation: action.payload.simulation,
+          estimatedCost: action.payload.estimatedCost,
+          error: null,
+        };
       case "SIGNING":
-        return { ...state, status: "signing" };
+        return {
+          ...state,
+          status: "signing",
+          simulation: action.payload.simulation,
+          estimatedCost: action.payload.estimatedCost,
+        };
       case "SUBMITTING":
         return { ...state, status: "submitting" };
       case "POLLING":
         return { ...state, status: "polling" };
       case "SUCCESS":
-        return { status: "success", hash: action.hash, result: action.payload, error: null };
+        return {
+          ...state,
+          status: "success",
+          hash: action.hash,
+          result: action.payload,
+          error: null,
+        };
       case "ERROR":
         return { ...state, status: "error", error: action.payload };
       default:
@@ -114,7 +169,56 @@ export function useSorobanContract<TResult = unknown>(
     hash: null,
     result: null,
     error: null,
+    simulation: null,
+    estimatedCost: null,
   });
+
+  useHookActivityDebug({
+    name: "useSorobanContract",
+    status: state.status,
+    error: state.error,
+  });
+
+  const estimateFromSimulation = useCallback(
+    (
+      simulation: rpc.Api.SimulateTransactionResponse,
+    ): SorobanSimulationEstimate => {
+      const simulationRecord = simulation as Record<string, unknown>;
+      const cost =
+        "cost" in simulationRecord ? simulationRecord.cost ?? null : null;
+      const costRecord =
+        typeof cost === "object" && cost !== null
+          ? (cost as Record<string, unknown>)
+          : null;
+
+      const resourceFeeCandidate =
+        simulationRecord.minResourceFee ??
+        simulationRecord.resourceFee ??
+        costRecord?.resourceFee ??
+        costRecord?.fee ??
+        null;
+      const instructionsCandidate =
+        costRecord?.cpuInsns ??
+        costRecord?.instructions ??
+        costRecord?.instructionCount ??
+        null;
+
+      return {
+        resourceFee:
+          typeof resourceFeeCandidate === "string" ||
+          typeof resourceFeeCandidate === "number"
+            ? String(resourceFeeCandidate)
+            : null,
+        instructions:
+          typeof instructionsCandidate === "string" ||
+          typeof instructionsCandidate === "number"
+            ? instructionsCandidate
+            : null,
+        cost,
+      };
+    },
+    [],
+  );
 
   const call = useCallback(
     async (overrides?: Partial<Omit<ContractCallOptions<TResult>, "contractId">>): Promise<TResult | null> => {
@@ -176,10 +280,15 @@ export function useSorobanContract<TResult = unknown>(
           return null;
         }
 
+        const estimatedCost = estimateFromSimulation(simResult);
+
         const preparedTx = rpc.assembleTransaction(tx, simResult).build();
 
         // ── 3. Sign ───────────────────────────────────────────────────────────
-        dispatch({ type: "SIGNING" });
+        dispatch({
+          type: "SIGNING",
+          payload: { simulation: simResult, estimatedCost },
+        });
 
         const signedXdr = await signTransaction(unsafeAsXdrString(preparedTx.toXDR()), {
           networkPassphrase: passphrase,
@@ -293,7 +402,7 @@ export function useSorobanContract<TResult = unknown>(
         return null;
       }
     },
-    [contractId, baseMethod, baseArgs, baseFee, baseTimeout, sorobanRpcServer, onSuccess, onError, baseParse, publicKey, networkPassphrase, signTransaction, config],
+    [contractId, baseMethod, baseArgs, baseFee, baseTimeout, sorobanRpcServer, onSuccess, onError, baseParse, publicKey, networkPassphrase, signTransaction, config, estimateFromSimulation],
   );
 
   const simulate = useCallback(
@@ -331,13 +440,25 @@ export function useSorobanContract<TResult = unknown>(
           .build();
 
         // Forward to RPC preflight endpoint
-        return await server.simulateTransaction(tx);
+        const simulation = await server.simulateTransaction(tx);
+
+        if (!rpc.Api.isSimulationError(simulation)) {
+          dispatch({
+            type: "SIMULATION",
+            payload: {
+              simulation,
+              estimatedCost: estimateFromSimulation(simulation),
+            },
+          });
+        }
+
+        return simulation;
       } catch (err) {
         // Gracefully bubble up construction or RPC errors
         throw err instanceof Error ? err : new Error(String(err));
       }
     },
-    [contractId, baseMethod, baseArgs, baseFee, baseTimeout, sorobanRpcServer, publicKey, networkPassphrase, config]
+    [contractId, baseMethod, baseArgs, baseFee, baseTimeout, sorobanRpcServer, publicKey, networkPassphrase, config, estimateFromSimulation]
   );
 
   const query = useCallback(

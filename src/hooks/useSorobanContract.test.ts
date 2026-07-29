@@ -105,6 +105,8 @@ const TX_HASH =
 function setupSuccessfulCall() {
   mockSimulateTransaction.mockResolvedValue({
     results: [{ retval: {} }],
+    minResourceFee: "12345",
+    cost: { cpuInsns: "67890" },
   });
   mockSignTransaction.mockResolvedValue("signed-xdr");
   mockSendTransaction.mockResolvedValue({
@@ -284,6 +286,8 @@ describe("useSorobanContract — status transitions", () => {
     mockSimulateTransaction.mockResolvedValue({
       result: { retval: xdr.ScVal.scvSymbol("dry_ok") },
       latestLedger: 100,
+      minResourceFee: "400",
+      cost: { cpuInsns: "2222" },
     });
 
     const { result } = renderHook(() =>
@@ -300,6 +304,15 @@ describe("useSorobanContract — status transitions", () => {
 
     // Lifecycle lands on success — not building/signing/submitting.
     expect(result.current.status).toBe("success");
+    expect(result.current.simulation).toMatchObject({
+      latestLedger: 100,
+      minResourceFee: "400",
+    });
+    expect(result.current.estimatedCost).toEqual({
+      resourceFee: "400",
+      instructions: "2222",
+      cost: { cpuInsns: "2222" },
+    });
 
     // dryRun must NEVER touch the signing or submission surface.
     expect(mockSignTransaction).not.toHaveBeenCalled();
@@ -326,6 +339,93 @@ describe("useSorobanContract — status transitions", () => {
     expect(result.current.status).toBe("error");
     expect(result.current.error?.message).toMatch(/Simulation failed/);
     expect(result.current.result).toBeNull();
+    expect(result.current.simulation).toBeNull();
+    expect(result.current.estimatedCost).toBeNull();
+  });
+
+  it("captures the raw simulation response and normalized estimate from simulate()", async () => {
+    mockSimulateTransaction.mockResolvedValue({
+      result: { retval: xdr.ScVal.scvSymbol("preview") },
+      latestLedger: 321,
+      minResourceFee: "777",
+      cost: { cpuInsns: "8888", memBytes: "1024" },
+    });
+
+    const { result } = renderHook(() =>
+      useSorobanContract(CONTRACT_ID, { method: "hello" }),
+    );
+
+    await act(async () => {
+      const sim = await result.current.simulate();
+      expect(sim).toMatchObject({
+        latestLedger: 321,
+        minResourceFee: "777",
+      });
+    });
+
+    expect(result.current.status).toBe("idle");
+    expect(result.current.simulation).toMatchObject({
+      latestLedger: 321,
+      minResourceFee: "777",
+    });
+    expect(result.current.estimatedCost).toEqual({
+      resourceFee: "777",
+      instructions: "8888",
+      cost: { cpuInsns: "8888", memBytes: "1024" },
+    });
+  });
+
+  it("exposes the estimate before signing during call()", async () => {
+    let resolveSigning!: (value: string) => void;
+    mockSimulateTransaction.mockResolvedValue({
+      results: [{ retval: {} }],
+      minResourceFee: "999",
+      cost: { cpuInsns: "54321" },
+    });
+    mockSignTransaction.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveSigning = resolve;
+        }),
+    );
+    mockSendTransaction.mockResolvedValue({
+      status: "PENDING",
+      hash: TX_HASH,
+    });
+    mockGetTransaction.mockResolvedValue({
+      status: rpc.Api.GetTransactionStatus.SUCCESS,
+      resultMetaXdr: null,
+    });
+
+    const { result } = renderHook(() =>
+      useSorobanContract(CONTRACT_ID, { method: "hello" }),
+    );
+
+    let callPromise!: Promise<unknown>;
+    act(() => {
+      callPromise = result.current.call();
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("signing");
+    });
+
+    expect(result.current.estimatedCost).toEqual({
+      resourceFee: "999",
+      instructions: "54321",
+      cost: { cpuInsns: "54321" },
+    });
+    expect(result.current.simulation).toMatchObject({
+      minResourceFee: "999",
+    });
+
+    await act(async () => {
+      resolveSigning("signed-xdr");
+      await callPromise;
+    });
+
+    expect(result.current.status).toBe("success");
+    expect(result.current.estimatedCost?.resourceFee).toBe("999");
   });
 
   it("reset() clears all state back to idle", async () => {

@@ -7,6 +7,8 @@
 
 // Provider & context
 export { StellarProvider, StellarHooksProvider, useStellarContext } from "./context";
+export { HookActivityOverlay } from "./devtools/HookActivityOverlay";
+export type { HookActivityOverlayProps } from "./devtools/HookActivityOverlay";
 
 // Hooks
 export { useNetwork } from "./hooks/useNetwork";
@@ -31,6 +33,13 @@ export type {
   UseTransactionOptions,
   UseTransactionReturn,
 } from "./hooks/useTransaction";
+export { useMultiOperationTransaction } from "./hooks/useMultiOperationTransaction";
+export type {
+  MultiOperationBuilder,
+  MultiOperationInput,
+  UseMultiOperationTransactionOptions,
+  UseMultiOperationTransactionReturn,
+} from "./hooks/useMultiOperationTransaction";
 export { useLedgerEntry } from "./hooks/useLedgerEntry";
 export { useStellarToml } from "./hooks/useStellarToml";
 export { useAssetMetadata } from "./hooks/useAssetMetadata";
@@ -161,6 +170,7 @@ export type {
   TransactionState,
   // Contract
   ContractCallOptions,
+  SorobanSimulationEstimate,
   UseContractCallReturn,
   // Ledger
   LedgerEntryState,
@@ -168,6 +178,7 @@ export type {
   StellarProviderProps,
   StellarHooksProviderProps,
   StellarContextValue,
+  HookActivitySnapshot,
   // Wallets Kit
   WalletsKitOptions,
   WalletsKitState,

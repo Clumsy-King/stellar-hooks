@@ -50,6 +50,8 @@ export function useSequenceNumber(
     enabled: enabled && Boolean(publicKey),
     initialData: null,
   });
+    debugLabel: "useSequenceNumber",
+
 
   const refresh = useCallback(async () => {
     setIncrementCount(0);

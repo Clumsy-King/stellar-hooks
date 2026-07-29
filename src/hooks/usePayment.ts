@@ -121,6 +121,7 @@ export function usePayment(options: UsePaymentOptions): UsePaymentReturn {
   const { submit: submitXdr, reset, ...txState } = useTransactionCore({
     mode: "classic",
     timeoutSeconds,
+    debugLabel: "usePayment",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });
