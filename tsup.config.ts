@@ -19,6 +19,7 @@ export default defineConfig({
     "@stellar/stellar-sdk/rpc",
     "@stellar/stellar-sdk/contract",
     "@stellar/freighter-api",
+    "@albedo-link/intent",
     "@walletconnect/sign-client",
     "@creit-tech/stellar-wallets-kit/sdk",
   ],

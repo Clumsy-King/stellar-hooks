@@ -23,6 +23,14 @@ export { useEffects } from "./useEffects";
 export type { UseEffectsOptions, UseEffectsReturn } from "./useEffects";
 
 export { useFreighter } from "./useFreighter";
+export { useAlbedo } from "./useAlbedo";
+export type {
+  AlbedoState,
+  UseAlbedoOptions,
+  SignAlbedoTransactionOptions,
+  SignAlbedoMessageOptions,
+  UseAlbedoReturn,
+} from "./useAlbedo";
 
 export { useFreighterAccounts } from "./useFreighterAccounts";
 export type {
