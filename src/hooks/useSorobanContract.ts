@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { useCallback, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
   Contract,
   TransactionBuilder,
@@ -61,7 +61,7 @@ type Action<TResult> =
   | { type: "SUBMITTING" }
   | { type: "POLLING" }
   | { type: "SUCCESS"; payload: TResult; hash: StellarTxHash }
-  | { type: "ERROR"; payload: StellarTransactionError };
+  | { type: "ERROR"; payload: StellarTransactionError; rollbackResult?: TResult | null };
 
 function createReducer<TResult>() {
   return function reducer(
@@ -113,7 +113,12 @@ function createReducer<TResult>() {
           error: null,
         };
       case "ERROR":
-        return { ...state, status: "error", error: action.payload };
+        return {
+          ...state,
+          status: "error",
+          error: action.payload,
+          ...(action.rollbackResult !== undefined ? { result: action.rollbackResult } : {}),
+        };
       default:
         return state;
     }
@@ -161,6 +166,7 @@ export function useSorobanContract<TResult = unknown>(
     onSuccess,
     onError,
     parseResult: baseParse,
+    optimisticResult: baseOptimisticResult,
   } = options;
 
   const reducer = createReducer<TResult>();
@@ -228,14 +234,17 @@ export function useSorobanContract<TResult = unknown>(
         fee = baseFee,
         timeoutSeconds = baseTimeout,
         parseResult = baseParse,
+        optimisticResult = baseOptimisticResult,
       } = overrides || {};
+
+      const previousResult = stateRef.current.result;
 
       if (!publicKey) {
         const err: StellarTransactionError = {
           type: "network",
           message: "No wallet connected. Call useFreighter().connect() first.",
         };
-        dispatch({ type: "ERROR", payload: err });
+        dispatch({ type: "ERROR", payload: err, rollbackResult: previousResult });
         onError?.(err);
         return null;
       }
@@ -245,7 +254,7 @@ export function useSorobanContract<TResult = unknown>(
         validateContractId(contractId);
 
         // ── 1. Build ──────────────────────────────────────────────────────────
-        dispatch({ type: "BUILDING" });
+        dispatch({ type: "BUILDING", optimisticResult });
 
         // rpc is the correct namespace in @stellar/stellar-sdk@13 (previously SorobanRpc)
         const server = sorobanRpcServer ?? new rpc.Server(config.sorobanRpcUrl);
@@ -275,7 +284,7 @@ export function useSorobanContract<TResult = unknown>(
             type: "network",
             message: `Simulation failed: ${simResult.error}`,
           };
-          dispatch({ type: "ERROR", payload: err });
+          dispatch({ type: "ERROR", payload: err, rollbackResult: previousResult });
           onError?.(err);
           return null;
         }
@@ -309,7 +318,7 @@ export function useSorobanContract<TResult = unknown>(
             type: "network",
             message: `Submission failed: ${JSON.stringify(sendResult.errorResult)}`,
           };
-          dispatch({ type: "ERROR", payload: err });
+          dispatch({ type: "ERROR", payload: err, rollbackResult: previousResult });
           onError?.(err);
           return null;
         }
@@ -359,7 +368,7 @@ export function useSorobanContract<TResult = unknown>(
               resultCode: "unknown",
               message: `Transaction failed on-chain`,
             };
-            dispatch({ type: "ERROR", payload: err });
+            dispatch({ type: "ERROR", payload: err, rollbackResult: previousResult });
             onError?.(err);
             return null;
           }
@@ -370,7 +379,7 @@ export function useSorobanContract<TResult = unknown>(
           type: "timeout",
           message: `Transaction polling timed out after ${timeoutSeconds}s. Transaction may have been dropped from the queue: ${txHash}`,
         };
-        dispatch({ type: "ERROR", payload: timeoutErr });
+        dispatch({ type: "ERROR", payload: timeoutErr, rollbackResult: previousResult });
         onError?.(timeoutErr);
         return null;
       } catch (err) {
@@ -397,7 +406,7 @@ export function useSorobanContract<TResult = unknown>(
           };
         }
 
-        dispatch({ type: "ERROR", payload: error });
+        dispatch({ type: "ERROR", payload: error, rollbackResult: previousResult });
         onError?.(error);
         return null;
       }

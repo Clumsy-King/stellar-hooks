@@ -1,7 +1,7 @@
 export { useNetwork } from "./useNetwork";
 export { useStellarNetwork } from "./useStellarNetwork";
 export type { UseStellarNetworkReturn } from "./useStellarNetwork";
-export { useStellarAccount } from "./useStellarAccount";
+export { useStellarAccount, useSuspenseStellarAccount } from "./useStellarAccount";
 export type { UseStellarAccountOptions, UseStellarAccountReturn } from "./useStellarAccount";
 
 export { useStellarAccounts } from "./useStellarAccounts";
@@ -53,7 +53,7 @@ export type {
   UseMultiOperationTransactionReturn,
 } from "./useMultiOperationTransaction";
 
-export { useLedgerEntry } from "./useLedgerEntry";
+export { useLedgerEntry, useSuspenseLedgerEntry } from "./useLedgerEntry";
 export type { UseLedgerEntryOptions } from "./useLedgerEntry";
 
 export { useContractStorage } from "./useContractStorage";

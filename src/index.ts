@@ -20,7 +20,7 @@ export type {
   UseFreighterAccountsOptions,
   UseFreighterAccountsReturn,
 } from "./hooks/useFreighterAccounts";
-export { useStellarAccount } from "./hooks/useStellarAccount";
+export { useStellarAccount, useSuspenseStellarAccount } from "./hooks/useStellarAccount";
 export { useStellarAccounts } from "./hooks/useStellarAccounts";
 export type {
   UseStellarAccountsOptions,

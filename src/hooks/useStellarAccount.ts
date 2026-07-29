@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { getHorizonServer } from "../utils/memoizedServers";
 import { useStellarContext } from "../context";
 import type { StellarAccountData, StellarPublicKey } from "../types";
@@ -102,4 +102,43 @@ export function useStellarAccount(
       state.refetch,
     ],
   );
+}
+
+/**
+ * React Suspense-compatible variant of {@link useStellarAccount}.
+ * Throws a Promise during data fetching for `<Suspense>` boundaries
+ * and throws Errors for `<ErrorBoundary>` boundaries.
+ */
+export function useSuspenseStellarAccount(
+  publicKey: StellarPublicKey | null | undefined,
+  options: UseStellarAccountOptions = {},
+): UseStellarAccountReturn {
+  const state = useStellarAccount(publicKey, options);
+  const promiseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+
+  if (!promiseRef.current) {
+    let resolveFn!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      resolveFn = resolve;
+    });
+    promiseRef.current = { promise, resolve: resolveFn };
+  }
+
+  useEffect(() => {
+    if (!state.isLoading && promiseRef.current) {
+      promiseRef.current.resolve();
+      promiseRef.current = null;
+    }
+  }, [state.isLoading]);
+
+  if ((options.enabled ?? true) && Boolean(publicKey)) {
+    if (state.error) {
+      throw state.error;
+    }
+    if (state.isLoading && state.data === null && promiseRef.current) {
+      throw promiseRef.current.promise;
+    }
+  }
+
+  return state;
 }

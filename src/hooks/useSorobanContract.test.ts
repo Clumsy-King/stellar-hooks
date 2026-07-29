@@ -478,4 +478,62 @@ describe("useSorobanContract — status transitions", () => {
     expect(result.current.hash).toBeNull();
     expect(result.current.result).toBeNull();
   });
+
+  describe("optimistic updates", () => {
+    it("sets optimistic result immediately during call and keeps it on success", async () => {
+      setupSuccessfulCall();
+
+      const { result } = renderHook(() =>
+        useSorobanContract<number>(CONTRACT_ID, {
+          method: "increment",
+          optimisticResult: 42,
+        }),
+      );
+
+      let callPromise: Promise<number | null>;
+      act(() => {
+        callPromise = result.current.call();
+      });
+
+      // While building/processing, result should reflect optimistic result
+      expect(result.current.result).toBe(42);
+
+      await act(async () => {
+        await callPromise;
+      });
+
+      expect(result.current.status).toBe("success");
+    });
+
+    it("rolls back optimistic result to previous result on error", async () => {
+      mockSimulateTransaction.mockResolvedValueOnce({
+        error: "Host function error",
+      });
+
+      const { result } = renderHook(() =>
+        useSorobanContract<string>(CONTRACT_ID, {
+          method: "bad_method",
+        }),
+      );
+
+      // Initially result is null
+      expect(result.current.result).toBeNull();
+
+      let callPromise: Promise<string | null>;
+      act(() => {
+        callPromise = result.current.call({ optimisticResult: "optimistic_value" });
+      });
+
+      // Immediately set to optimistic value
+      expect(result.current.result).toBe("optimistic_value");
+
+      await act(async () => {
+        await callPromise;
+      });
+
+      // Rolled back to previous result (null) on failure
+      expect(result.current.status).toBe("error");
+      expect(result.current.result).toBeNull();
+    });
+  });
 });
