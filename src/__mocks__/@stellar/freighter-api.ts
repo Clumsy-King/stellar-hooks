@@ -12,13 +12,21 @@ export const signMessage = vi.fn().mockResolvedValue({ signedMessage: "signed-bl
 export const signBlob = signMessage;
 
 export function resetFreighterMocks() {
+  isConnected.mockReset();
   isConnected.mockResolvedValue({ isConnected: false });
+  isAllowed.mockReset();
   isAllowed.mockResolvedValue({ isAllowed: false });
+  getAddress.mockReset();
   getAddress.mockResolvedValue({ address: null, error: "Not connected" });
+  getNetworkDetails.mockReset();
   getNetworkDetails.mockResolvedValue({ network: null, networkPassphrase: null });
+  requestAccess.mockReset();
   requestAccess.mockResolvedValue({ address: null, error: null });
+  signTransaction.mockReset();
   signTransaction.mockResolvedValue({ signedTxXdr: "signed-xdr", error: null });
+  signAuthEntry.mockReset();
   signAuthEntry.mockResolvedValue({ signedAuthEntry: "signed-entry", error: null });
+  signMessage.mockReset();
   signMessage.mockResolvedValue({ signedMessage: "signed-blob", signedBlob: "signed-blob", error: null });
 }
 

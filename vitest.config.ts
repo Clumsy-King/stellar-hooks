@@ -16,7 +16,20 @@ export default defineConfig({
     globals: true,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.test-d.ts", "examples/**/*.test.tsx"],
     exclude: ["**/node_modules/**", "src/types/branded.test-d.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 90,
+        statements: 90,
+      },
+    },
     alias: {
+      "@albedo-link/intent": fileURLToPath(
+        new URL("./src/__mocks__/@albedo-link/intent.ts", import.meta.url)
+      ),
       "@stellar/freighter-api": fileURLToPath(
         new URL("./src/__mocks__/@stellar/freighter-api.ts", import.meta.url)
       ),

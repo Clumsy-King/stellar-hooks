@@ -28,6 +28,7 @@ import {
 
 
 beforeEach(() => {
+  vi.resetModules();
   resetFreighterMocks();
 });
 
