@@ -499,6 +499,11 @@ export interface ContractCallOptions<TResult = unknown> {
    * If not provided, the raw xdr.ScVal is returned (or tx hash as fallback).
    */
   parseResult?: (scVal: xdr.ScVal) => TResult;
+  /**
+   * Optional optimistic result value to display immediately while the contract call is processing.
+   * Automatically rolled back to previous result if the call fails.
+   */
+  optimisticResult?: TResult;
 }
 
 /**
