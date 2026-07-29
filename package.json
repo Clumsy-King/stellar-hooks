@@ -653,7 +653,7 @@
     "release:dry-run": "semantic-release --dry-run",
     "size": "npm run build && size-limit",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "npm run docs:typedoc:all && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "docs:typedoc": "typedoc",
     "docs:typedoc:all": "npm run docs:typedoc && cd packages/query && npm run docs:build && cd ../swr && npm run docs:build && cd ../..",
