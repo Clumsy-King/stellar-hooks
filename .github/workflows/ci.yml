@@ -81,6 +81,9 @@ jobs:
       - name: Check for duplicate exports in barrel
         run: node scripts/check-duplicate-exports.mjs
 
+      - name: Test tree-shaking
+        run: npm run test:tree-shaking
+
       - name: Test
         run: npm run test
 
