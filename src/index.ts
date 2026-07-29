@@ -18,7 +18,7 @@ export type {
   UseFreighterAccountsOptions,
   UseFreighterAccountsReturn,
 } from "./hooks/useFreighterAccounts";
-export { useStellarAccount } from "./hooks/useStellarAccount";
+export { useStellarAccount, useSuspenseStellarAccount } from "./hooks/useStellarAccount";
 export { useStellarAccounts } from "./hooks/useStellarAccounts";
 export type {
   UseStellarAccountsOptions,
@@ -31,7 +31,7 @@ export type {
   UseTransactionOptions,
   UseTransactionReturn,
 } from "./hooks/useTransaction";
-export { useLedgerEntry } from "./hooks/useLedgerEntry";
+export { useLedgerEntry, useSuspenseLedgerEntry } from "./hooks/useLedgerEntry";
 export { useStellarToml } from "./hooks/useStellarToml";
 export { useAssetMetadata } from "./hooks/useAssetMetadata";
 export { useStellarOffers } from "./hooks/useStellarOffers";
