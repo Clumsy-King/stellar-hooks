@@ -8,26 +8,17 @@
 > React hooks for Stellar and Soroban. The `wagmi` you've been waiting for.
 
 
-```bash
-npm install stellar-hooks
-```
-
 `stellar-hooks` wires the [Stellar JS SDK v13](https://github.com/stellar/js-stellar-sdk) and the Freighter wallet API into a set of ergonomic React hooks so you can build Stellar dApps without copy-pasting the same boilerplate across repos.
 
 ---
 
-## Features
-
-- **Freighter Integration**: Seamlessly connect and interact with the Freighter wallet.
-- **Horizon Data Fetching**: Easy access to account balances, offers, and more.
-- **Soroban Support**: Call smart contracts with built-in simulation and auth handling.
-- **Transaction Helpers**: Simplified submission and polling for both classic and Soroban.
-- **Modular Adapters**: First-class support for React Query and SWR.
-- **Type-Safe**: Written in TypeScript with full type definitions.
-
----
-
 ## Quick start
+
+```bash
+npm install stellar-hooks
+```
+
+Wrap your app with the provider and read a balance in a single component:
 
 ```tsx
 // main.tsx
@@ -60,7 +51,11 @@ export function App() {
 }
 ```
 
+That's it — install, connect, read a balance.
+
 ---
+
+## Features
 
 ## Hooks
 
