@@ -29,10 +29,10 @@ jobs:
         run: npm run lint
 
       - name: Type-check
-        run: npm run typecheck
+        run: npm run type-check
 
   test:
-    name: Test
+    name: Test suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,11 +47,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests and collect coverage
+        run: npm test -- --coverage
 
-  build:
-    name: Build & bundle size
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  size:
+    name: Bundle size
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,17 +67,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint -- --max-warnings=0
-      - run: npm test
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
       - name: Check bundle size
-        run: npm run size
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bundle size report
         uses: andresz1/size-limit-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
