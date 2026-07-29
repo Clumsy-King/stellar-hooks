@@ -1,6 +1,7 @@
 import { defineConfig } from "tsup";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { visualizer } from "rollup-plugin-visualizer";
 
 const hooksDir = join(__dirname, "src/hooks");
 const hookFiles = readdirSync(hooksDir)
@@ -22,4 +23,15 @@ export default defineConfig({
     "@walletconnect/sign-client",
     "@creit-tech/stellar-wallets-kit/sdk",
   ],
+  rollup(options) {
+    options.plugins = options.plugins || [];
+    options.plugins.push(
+      visualizer({
+        filename: "dist/stats.html",
+        open: false,
+        gzipSize: true,
+        brotliSize: true,
+      })
+    );
+  },
 });
