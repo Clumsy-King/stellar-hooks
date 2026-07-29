@@ -137,6 +137,7 @@ export function useTransaction(
   } = useTransactionCore({
     mode,
     timeoutSeconds,
+    debugLabel: "useTransaction",
     ...(onSuccess && { onSuccess }),
     ...(onError && { onError }),
   });

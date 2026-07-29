@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useHookActivityDebug } from "../devtools/useHookActivityDebug";
 
 export interface UseStellarQueryOptions<T> {
   enabled?: boolean;
   refetchInterval?: number;
   deduplicate?: boolean;
   initialData?: T | null;
+  debugLabel?: string;
 }
 
 export interface UseStellarQueryResult<T> {
@@ -76,6 +78,7 @@ export function useStellarQuery<T>(
     refetchInterval = 0,
     deduplicate = true,
     initialData = null,
+    debugLabel = "useStellarQuery",
   } = options;
 
   const [state, dispatch] = useReducer(reducer<T>, {
@@ -168,6 +171,24 @@ export function useStellarQuery<T>(
     // causing an infinite fetch -> render -> fetch loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, refetch, refetchInterval, fetcher]);
+
+  const debugStatus = !enabled
+    ? "disabled"
+    : state.isLoading
+      ? "loading"
+      : state.isRefetching
+        ? "refetching"
+        : state.error
+          ? "error"
+          : state.lastFetchedAt
+            ? "success"
+            : "idle";
+
+  useHookActivityDebug({
+    name: debugLabel,
+    status: debugStatus,
+    error: state.error,
+  });
 
   return {
     data: state.data,

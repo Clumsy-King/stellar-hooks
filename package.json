@@ -282,6 +282,28 @@
         "default": "./dist/hooks/useMultiSig.js"
       }
     },
+    "./useMultiOperationTransaction": {
+      "types": "./dist/hooks/useMultiOperationTransaction.d.ts",
+      "import": {
+        "types": "./dist/hooks/useMultiOperationTransaction.d.mts",
+        "default": "./dist/hooks/useMultiOperationTransaction.mjs"
+      },
+      "require": {
+        "types": "./dist/hooks/useMultiOperationTransaction.d.ts",
+        "default": "./dist/hooks/useMultiOperationTransaction.js"
+      }
+    },
+    "./HookActivityOverlay": {
+      "types": "./dist/devtools/HookActivityOverlay.d.ts",
+      "import": {
+        "types": "./dist/devtools/HookActivityOverlay.d.mts",
+        "default": "./dist/devtools/HookActivityOverlay.mjs"
+      },
+      "require": {
+        "types": "./dist/devtools/HookActivityOverlay.d.ts",
+        "default": "./dist/devtools/HookActivityOverlay.js"
+      }
+    },
     "./useNetwork": {
       "types": "./dist/hooks/useNetwork.d.ts",
       "import": {

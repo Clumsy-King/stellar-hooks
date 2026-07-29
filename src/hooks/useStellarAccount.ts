@@ -80,6 +80,7 @@ export function useStellarAccount(
     refetchInterval,
     deduplicate,
     initialData: null,
+    debugLabel: "useStellarAccount",
   });
 
   return useMemo(

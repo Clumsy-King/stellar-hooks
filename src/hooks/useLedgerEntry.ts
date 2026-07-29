@@ -94,6 +94,7 @@ export function useLedgerEntry(
     enabled: enabled && Boolean(ledgerKey),
     refetchInterval,
     initialData: null,
+    debugLabel: "useLedgerEntry",
   });
 
   const refetch = useCallback(async () => {
