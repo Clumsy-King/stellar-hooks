@@ -11,7 +11,7 @@ export function createFreighterAdapter(): WalletAdapter {
     name: "Freighter",
 
     isInstalled(): boolean {
-      return typeof window !== "undefined" && !!(window as any).__FREIGHTER__;
+      return typeof window !== "undefined" && !!(window as unknown as { __FREIGHTER__?: unknown }).__FREIGHTER__;
     },
 
     async connect(): Promise<string> {

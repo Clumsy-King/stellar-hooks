@@ -20,6 +20,8 @@ export interface UseOperationsOptions {
   limit?: number;
   /** Sort order. Default: "desc" */
   order?: "asc" | "desc";
+  /** Include failed operations in the results. Default: false */
+  includeFailed?: boolean;
   /** Whether the hook should fetch. Default: true */
   enabled?: boolean;
   /** Polling interval in ms. Default: 0 (disabled) */
@@ -69,6 +71,7 @@ export function useOperations(
     cursor,
     limit = 10,
     order = "desc",
+    includeFailed = false,
     enabled = true,
     refetchInterval = 0,
   } = options;
@@ -90,7 +93,7 @@ export function useOperations(
 
     try {
       const server = new Horizon.Server(config.horizonUrl);
-      let query = server.operations().order(order).limit(limit);
+      let query = server.operations().order(order).limit(limit).includeFailed(includeFailed);
 
       if (cursor) {
         query = query.cursor(cursor);
@@ -112,7 +115,7 @@ export function useOperations(
     } finally {
       setIsLoading(false);
     }
-  }, [accountId, transactionHash, cursor, limit, order, config.horizonUrl]);
+  }, [accountId, transactionHash, cursor, limit, order, includeFailed, config.horizonUrl]);
 
   useEffect(() => {
     if (!enabled || (!accountId && !transactionHash)) return;

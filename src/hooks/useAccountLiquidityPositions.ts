@@ -17,6 +17,15 @@ export interface UseAccountLiquidityPositionsReturn {
   refetch: () => Promise<void>;
 }
 
+/**
+ * Fetches all liquidity pool positions for a given Stellar account.
+ *
+ * @example
+ * ```tsx
+ * const { positions, isLoading, error, refetch } = useAccountLiquidityPositions(publicKey);
+ * // positions: [{ id: "pool-abc...", reserves: [...], total_shares: "1000" }, ...]
+ * ```
+ */
 export function useAccountLiquidityPositions(
   publicKey: StellarPublicKey | null | undefined,
   options: UseAccountLiquidityPositionsOptions = {}
@@ -29,7 +38,8 @@ export function useAccountLiquidityPositions(
 
     validatePublicKey(publicKey);
     const url = `${config.horizonUrl.replace(/\/$/, "")}/liquidity_pools?account=${publicKey}&limit=200`;
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) {
       throw new Error(`Failed to fetch liquidity positions: ${response.status}`);
     }

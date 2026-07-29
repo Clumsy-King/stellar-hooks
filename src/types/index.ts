@@ -128,6 +128,41 @@ export interface CustomNetworkConfig {
   networkPassphrase: string;
 }
 
+export interface UseOffersOptions {
+  enabled?: boolean;
+  refetchInterval?: number;
+  limit?: number;
+}
+
+export interface UseOffersReturn {
+  offers: Horizon.ServerApi.OfferRecord[];
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  nextPage: () => Promise<void>;
+  prevPage: () => Promise<void>;
+}
+
+// Re-export new hook types so consumers can import from "stellar-hooks"
+export type {
+  TradeRecord,
+  UseTradesOptions,
+  UseTradesReturn,
+} from "../hooks/useTrades";
+
+export type {
+  OrderBookLevel,
+  OrderBookRecord,
+  UseOrderBookOptions,
+  UseOrderBookReturn,
+} from "../hooks/useOrderBook";
+
+export type {
+  PathRecord,
+  UseStrictSendPathsOptions,
+  UseStrictSendPathsReturn,
+} from "../hooks/useStrictSendPaths";
+
 export const NETWORK_CONFIGS: Record<Exclude<StellarNetwork, "custom">, NetworkConfig> = {
   mainnet: {
     network: "mainnet",
@@ -500,6 +535,20 @@ export interface StellarProviderProps {
    * network passphrase for your deployment.
    */
   customConfig?: CustomNetworkConfig;
+  children: React.ReactNode;
+}
+
+export interface StellarHooksProviderProps {
+  /** Built-in preset (`testnet`, `mainnet`, `futurenet`) or `"custom"` for a private network. @default "testnet" */
+  network?: StellarNetwork | undefined;
+  /** Optional custom Horizon URL to override the network default or define custom. */
+  horizonUrl?: string | undefined;
+  /** Optional custom Soroban RPC URL to override the network default or define custom. */
+  sorobanRpcUrl?: string | undefined;
+  /** Optional custom network passphrase to override the network default or define custom. */
+  networkPassphrase?: string | undefined;
+  /** Backward compatible custom config object. */
+  customConfig?: CustomNetworkConfig | undefined;
   children: React.ReactNode;
 }
 

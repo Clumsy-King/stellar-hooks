@@ -14,6 +14,10 @@ export type { UseStellarBalanceReturn } from "./useStellarBalance";
 
 export { useStellarOffers } from "./useStellarOffers";
 export type { UseStellarOffersOptions, UseStellarOffersReturn } from "./useStellarOffers";
+export { useOffers } from "./useOffers";
+export type { UseOffersOptions, UseOffersReturn } from "./useOffers";
+export { useNetworkConfig } from "./useNetworkConfig";
+export { useHorizonServer } from "./useHorizonServer";
 
 export { useEffects } from "./useEffects";
 export type { UseEffectsOptions, UseEffectsReturn } from "./useEffects";
@@ -82,10 +86,7 @@ export type {
 } from "./useAccountFlags";
 
 export { useAccountMerge } from "./useAccountMerge";
-export type {
-  UseAccountMergeOptions,
-  UseAccountMergeReturn,
-} from "./useAccountMerge";
+export type { UseAccountMergeOptions, UseAccountMergeReturn } from "./useAccountMerge";
 
 export {
   useClaimableBalances,
@@ -149,3 +150,40 @@ export type {
 
 export { useContractEvents } from "./useContractEvents";
 export type { UseContractEventsOptions } from "./useContractEvents";
+
+export { useTrades } from "./useTrades";
+export type {
+  TradeRecord,
+  UseTradesOptions,
+  UseTradesReturn,
+} from "./useTrades";
+
+export { useOrderBook } from "./useOrderBook";
+export type {
+  OrderBookLevel,
+  OrderBookRecord,
+  UseOrderBookOptions,
+  UseOrderBookReturn,
+} from "./useOrderBook";
+
+export { useStrictSendPaths } from "./useStrictSendPaths";
+export type {
+  PathRecord,
+  UseStrictSendPathsOptions,
+  UseStrictSendPathsReturn,
+} from "./useStrictSendPaths";
+
+export { useAssetSearch } from "./useAssetSearch";
+export type {
+  StellarAssetInfo,
+  StellarAssetRating,
+  StellarAssetTomlInfo,
+  UseAssetSearchOptions,
+  UseAssetSearchReturn,
+} from "./useAssetSearch";
+
+export { useIntersectionObserver } from "./useIntersectionObserver";
+export type {
+  UseIntersectionObserverOptions,
+  UseIntersectionObserverReturn,
+} from "./useIntersectionObserver";

@@ -30,6 +30,15 @@ export interface UseLiquidityPoolReturn {
   refetch: () => Promise<void>;
 }
 
+/**
+ * Fetches liquidity pool data from the Horizon API.
+ *
+ * @example
+ * ```tsx
+ * const { pool, isLoading, error, refetch } = useLiquidityPool(poolId);
+ * // pool: { id: "abc...", reserves: [{ asset: "USDC:G...", amount: "50000" }], ... }
+ * ```
+ */
 export function useLiquidityPool(
   poolId: string | null | undefined,
   options: UseLiquidityPoolOptions = {}
@@ -41,7 +50,8 @@ export function useLiquidityPool(
     if (!poolId) return null;
 
     const url = `${config.horizonUrl.replace(/\/$/, "")}/liquidity_pools/${poolId}`;
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) {
       throw new Error(`Failed to fetch liquidity pool: ${response.status}`);
     }

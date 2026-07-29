@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { xdr } from "@stellar/stellar-sdk";
 import * as rpc from "@stellar/stellar-sdk/rpc";
 import { useStellarContext } from "../context";
@@ -62,13 +62,19 @@ export function useLedgerEntry(
 ): LedgerEntryState {
   const { enabled = true, refetchInterval = 0, cacheTTL = 60000 } = options;
   const { config } = useStellarContext();
+  const bypassCacheRef = useRef(false);
 
   const fetch = useCallback(async () => {
     if (!ledgerKey) return null;
 
     const cacheKey = `ledger-entry-${ledgerKey.toXDR("base64")}-${config.network}`;
-    const cached = getCache<rpc.Api.LedgerEntryResult>(cacheKey);
-    if (cached) return cached;
+
+    if (bypassCacheRef.current) {
+      bypassCacheRef.current = false;
+    } else {
+      const cached = getCache<rpc.Api.LedgerEntryResult>(cacheKey);
+      if (cached) return cached;
+    }
 
     const server = new rpc.Server(config.sorobanRpcUrl);
     const result = await server.getLedgerEntries(ledgerKey);
@@ -90,6 +96,15 @@ export function useLedgerEntry(
     initialData: null,
   });
 
+  const refetch = useCallback(async () => {
+    bypassCacheRef.current = true;
+    await state.refetch();
+    // `state` itself is intentionally omitted: `state.refetch` is the only
+    // stable field this callback needs, and depending on the whole object
+    // would re-create `refetch` on every data/loading update from useStellarQuery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.refetch]);
+
   return useMemo(
     () => ({
       data: state.data,
@@ -97,8 +112,8 @@ export function useLedgerEntry(
       isRefetching: state.isRefetching,
       error: state.error,
       lastFetchedAt: state.lastFetchedAt,
-      refetch: state.refetch,
+      refetch,
     }),
-    [state.data, state.isLoading, state.isRefetching, state.error, state.lastFetchedAt, state.refetch]
+    [state.data, state.isLoading, state.isRefetching, state.error, state.lastFetchedAt, refetch]
   ) as LedgerEntryState;
 }

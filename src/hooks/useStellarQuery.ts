@@ -88,8 +88,10 @@ export function useStellarQuery<T>(
 
   const stateRef = useRef(state);
   const fetcherRef = useRef(fetcher);
+  const initialDataRef = useRef(initialData);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     stateRef.current = state;
@@ -99,9 +101,19 @@ export function useStellarQuery<T>(
     fetcherRef.current = fetcher;
   }, [fetcher]);
 
+  useEffect(() => {
+    initialDataRef.current = initialData;
+  });
+
   const refetch = useCallback(async () => {
     if (!enabled) return;
     if (deduplicate && isFetchingRef.current) return;
+
+    // Abort any in-flight request before starting a new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
     isFetchingRef.current = true;
     dispatch({ type: "FETCH_START", hasData: stateRef.current.data !== null });
@@ -110,18 +122,21 @@ export function useStellarQuery<T>(
       const result = await fetcherRef.current();
       dispatch({ type: "FETCH_SUCCESS", payload: result });
     } catch (err) {
+      // Ignore AbortError from cancelled requests
+      if (err instanceof Error && err.name === "AbortError") return;
       dispatch({
         type: "FETCH_ERROR",
         payload: err instanceof Error ? err : new Error(String(err)),
       });
     } finally {
       isFetchingRef.current = false;
+      abortControllerRef.current = null;
     }
   }, [enabled, deduplicate]);
 
   useEffect(() => {
     if (!enabled) {
-      dispatch({ type: "RESET", payload: initialData });
+      dispatch({ type: "RESET", payload: initialDataRef.current });
       return;
     }
 
@@ -141,8 +156,18 @@ export function useStellarQuery<T>(
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     };
-  }, [enabled, initialData, refetch, refetchInterval]);
+    // initialData intentionally omitted: read via initialDataRef instead.
+    // Depending on it directly would re-run this effect on every render
+    // whenever a caller passes an inline literal (e.g. `initialData: []`),
+    // since a fresh array/object reference never equals the previous one -
+    // causing an infinite fetch -> render -> fetch loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, refetch, refetchInterval, fetcher]);
 
   return {
     data: state.data,

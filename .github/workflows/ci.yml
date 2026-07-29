@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for case-only path collisions
+        run: node scripts/check-case-collisions.mjs
+
       - name: Lint
         run: npm run lint
 
@@ -47,8 +50,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests and collect coverage
-        run: npm test -- --coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -67,6 +68,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Build
+        run: npm run build
+
+      - name: Check for duplicate exports in barrel
+        run: node scripts/check-duplicate-exports.mjs
+
+      - name: Test
+        run: npm run test
 
       - name: Install dependencies
         run: npm ci
