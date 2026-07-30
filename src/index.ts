@@ -15,6 +15,14 @@ export { useNetwork } from "./hooks/useNetwork";
 export { useStellarNetwork } from "./hooks/useStellarNetwork";
 export type { UseStellarNetworkReturn } from "./hooks/useStellarNetwork";
 export { useFreighter } from "./hooks/useFreighter";
+export { useAlbedo } from "./hooks/useAlbedo";
+export type {
+  AlbedoState,
+  UseAlbedoOptions,
+  SignAlbedoTransactionOptions,
+  SignAlbedoMessageOptions,
+  UseAlbedoReturn,
+} from "./hooks/useAlbedo";
 export { useFreighterAccounts } from "./hooks/useFreighterAccounts";
 export type {
   UseFreighterAccountsOptions,
